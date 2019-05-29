@@ -24,9 +24,22 @@ class TestBDESolver(unittest.TestCase):
         self.assertEqual(expected_x, solver.res_x)
         self.assertEqual(expected_y, solver.res_y)
 
+    def test_start_time_is_a_switch_but_not_candidate_from_input(self):
+        solver = BDESolver(lambda z : [not z[0][0]], [1], [0], [[False]])
+        solver.solve(1.5, 3)
+
+        expected_x = [0,1.5,2.5,3]
+        expected_y = [[False],[True],[False],[False]]
+
+        self.assertEqual(expected_x, solver.res_x)
+        self.assertEqual(expected_y, solver.res_y)
 
     def test_rounding_issues(self):
-        """This example got the wrong results due to rounding errors."""
+        """
+        This example got the wrong results due to rounding errors in initial implementation.
+        Explicitly keeping track what indexes are associated with candidate switch points
+        sorts this problem.  But is it a useful regression test.
+        """
 
         input_times = [0]
         input_states = [[True]]

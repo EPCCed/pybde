@@ -21,8 +21,7 @@ setup(name='pybde',
       author_email='a.hume@epcc.ed.ac.uk',
       license='MIT',
       packages=['pybde'],
-      install_requires=[
-      ],
+      install_requires=['numpy','matplotlib'],
       test_suite='nose.collector',
       tests_require=['nose'],
       zip_safe=False)

@@ -1,7 +1,7 @@
+from enum import IntEnum
 import heapq
 import numpy as np
 import matplotlib.pyplot as plt
-
 
 # Format of user defined function
 #
@@ -12,81 +12,105 @@ import matplotlib.pyplot as plt
 # If forcing inputs are used then a second argument Z2 is passed.
 # The indexes are the same except they refer to the forcing inputs.
 
+class IndexType(IntEnum):
+    VARIABLE = 1
+    FORCED_INPUT = 2
+    NONE = 3
+
+
 class CandidateSwitchFinder:
 
     def __init__(self, delays, x, start, end, forced_x=None):
-        self.x = x
-        self.end = end
         self.start = start
+        self.end = end
         self.delays = delays
-        self.forced_x = forced_x
 
+        self.indices = [0] * len(delays)
         self.have_forced_inputs = (forced_x is not None)
+        if self.have_forced_inputs:
+            self.forced_indices = [0] * len(delays)
+        self.times = []
 
-        self.times = [ ]
-        # Add the start time if it is not an input
-        if self.x[-1] < self.start:                                 #  COMPARE TIMES HERE - HERE WE NOT KNOW THE INDEX INTO STATE
-            heapq.heappush(self.times, self.start)
+        for i in range(len(self.delays)):
+            d = self.delays[i]
+            for j in range(len(x)):
+                t = x[j]
+                if (t + d) <= end:                # Comparing floats occurs here - think about this
+                    heapq.heappush(self.times, (t + d, i, IndexType.VARIABLE, j))
+                    print("#### adding {}, {}, {}, {} - now have {}".format(t + d, i, IndexType.VARIABLE, j, self.times))
 
-        for d in delays:
-            for t in x:
-                if self.start < (t + d) <= end:                      # COMPARE TIMES HERE  - HERE WE KNOW THE INDEX INTO STATE - BUT NOT THE INDEX INTO FORCED INPUTS
-                    heapq.heappush(self.times, t + d)
-
-            # Add start in case it is not in x
-            if self.start + d <= end:                                # COMPARE TIMES HERE - HERE WE DON'T KNOW THE INDEX INTO STATE - BUT NOT THE INDEX INTO FORCED INPUTS
-                heapq.heappush(self.times, self.start + d)
-
-            # If have forced inputs then add an extra queue for each delay
             if self.have_forced_inputs:
-                for t in forced_x:
-                    if self.start < (t + d) <= end:                  # COMPARE TIMES HERE - HERE WE DON'T KNOW THE INDEX
-                        heapq.heappush(self.times, t + d)
+                for j in range(len(forced_x)):
+                    t = forced_x[j]
+                    if (t + d) <= end:                  # COMPARE TIMES HERE - HERE WE DON'T KNOW THE INDEX
+                        heapq.heappush(self.times, (t + d, i, IndexType.FORCED_INPUT, j))
 
-    def add_new_times(self, t):
+        # pop all the indexes until start - this gets all the index correct before start
+        self.pop_until_start(start)
+
+        # Add the start time in case it is not a candidate - give it no new index information
+        heapq.heappush(self.times, (start, -1, IndexType.NONE, -1))
+
+
+    def add_new_times(self, t, variable_state_index):
         for i in range(0, len(self.delays)):
             new_time = self.delays[i] + t
-            if self.start < new_time <= self.end:                   # COMPARE TIMES HERE
-                heapq.heappush(self.times, new_time)
+            if new_time <= self.end:                   # COMPARE TIMES HERE
+                heapq.heappush(self.times, (new_time, i, IndexType.VARIABLE, variable_state_index) )
 
     def get_next_time(self):
+
+        print("--> In get_next_time:  heapq is : {}".format(self.times))
         if len(self.times) > 0:
-            next_time = heapq.heappop(self.times)
+            next_time = self.pop_and_update_indices()
 
-            while len(self.times) > 0 and self.times[0] == next_time:
-                heapq.heappop(self.times)
+            print("--> In get_next_time:  next_time is : {}".format(next_time))
 
-            self.add_new_times(next_time)
+            while len(self.times) > 0 and CandidateSwitchFinder.times_are_equal(self.times[0][0], next_time):
+                self.pop_and_update_indices()
+
             return next_time
         else:
             return None
+
+    @staticmethod
+    def times_are_equal(t1, t2):
+        return t1 == t2                                   # COMPARE TIMES
+
+    def pop_until_start(self, start):
+        while len(self.times) > 0 and self.times[0][0] < start:      # COMPARE TIMES
+            self.pop_and_update_indices()
+
+    def pop_and_update_indices(self):
+        next_time, delay_index, index_type, state_index = heapq.heappop(self.times)
+
+        print("--> In pop_and_update_indices :  popped : {}, {}, {}, {}".format(next_time, delay_index, index_type, state_index ))
+
+        if index_type == IndexType.VARIABLE:
+            self.indices[delay_index] = state_index
+        elif index_type == IndexType.FORCED_INPUT:
+            self.forced_indices[delay_index] = state_index
+
+        print("--> In pop_and_update_indices :  indices are : {}".format(self.indices))
+
+        return next_time
 
     def print_state(self):
         print("== Candidate switches ==")
         print("  {}".format(self.times))
 
-
 class BDESolver:
 
     def __init__(self,func,delays,x,y, forced_x=None, forced_y=None):
-
-        self.num_decimal_points = 4
 
         self.func = func
         self.delays = delays
         self.x = x
         self.y = y
 
-        # For each delay store the current index into the results
-        self.indices = [0] * len(delays)
-
         self.have_forced_inputs = (forced_x is not None)
         self.forced_x = forced_x
         self.forced_y = forced_y
-
-        # For each delay store the current index into the forced input
-        if self.have_forced_inputs:
-            self.forced_indices = [0] * len(delays)
 
         self.res_x = None
         self.res_y = None
@@ -97,31 +121,6 @@ class BDESolver:
         # x and y arrays are the same length
         # forced x and y are the same length
         # all state list are the same length
-
-            
-    def increment_indexes(self, t):
-        # Increment the indexes into the data for each delay
-        for i in range(len(self.delays)):
-            j = self.indices[i]
-            print("... j = {}  self.res_x = {}, t-self.delays[i] = {}".format(j, self.res_x, t-self.delays[i]))
-
-            while j < len(self.res_x) and round(self.res_x[j],self.num_decimal_points) <= round(t-self.delays[i],self.num_decimal_points):     # COMPARE TIMES HERE
-                j = j + 1
-                print("... increment j to {} ".format(j))
-            self.indices[i] = j-1
-            print("... so index is {}".format(self.indices[i]))
-            assert self.indices[i] >= 0
-
-        # Increment the indexes into the forced input data for each delay
-        if self.have_forced_inputs:
-            for i in range(len(self.delays)):
-                j = self.forced_indices[i]
-                print("... j = {}  self.forced_x = {}, t-self.delays[i] = {}".format(j, self.forced_x, t - self.delays[i]))
-                while j < len(self.forced_x) and round(self.forced_x[j],self.num_decimal_points) <= round(t-self.delays[i],self.num_decimal_points):                          # COMPARING TIMES HERE
-                    j = j + 1
-                self.forced_indices[i] = j-1
-                print("... so index is {}".format(self.forced_indices[i]))
-                assert self.forced_indices[i] >= 0
 
     def solve(self, start, end):
 
@@ -145,21 +144,21 @@ class BDESolver:
 
         candidate_switch_finder = CandidateSwitchFinder(self.delays,self.x,self.start_x, self.end_x,self.forced_x)
 
-        # Can make this better by making Candidate switch finder an iterator
         t = candidate_switch_finder.get_next_time()
         while t is not None:
             print("t={}".format(t))
-            self.increment_indexes(t)
             Z = []
-            for i in self.indices:
+            for i in candidate_switch_finder.indices:
                 print("Index i = {} of res_y = {}".format(i, self.res_y))
                 Z.append(self.res_y[i])
             
             if not self.have_forced_inputs:
+                print("Z {}".format(Z))
                 new_state = self.func(Z)
+                print("*** at t={} state is {}".format(t,new_state))
             else:
                 Z2 = []
-                for i in self.forced_indices:
+                for i in candidate_switch_finder.forced_indices:
                     Z2.append(self.forced_y[i])
                 print("Z {} Z2 {}".format(Z,Z2))
                 new_state = self.func(Z,Z2)
@@ -167,14 +166,18 @@ class BDESolver:
 
             # Keep this state if it has changed or this is the end of the simulation
             if new_state != self.res_y[-1] or t == self.end_x:
+                print("State has changed so adding new state: {}".format(new_state))
                 self.res_x.append(t)
                 self.res_y.append(new_state)
+                candidate_switch_finder.add_new_times(t, len(self.res_x)-1)
+            else:
+                print("State hasn't changed so not adding it")
 
             candidate_switch_finder.print_state()
             t = candidate_switch_finder.get_next_time()
             
         # If the last result is not the end time then add it in
-        if self.res_x[-1] != self.end_x :
+        if self.res_x[-1] != self.end_x:                     # COMPARING TIMES HERE
             self.res_x.append(self.end_x)
             self.res_y.append(self.res_y[-1])
 
