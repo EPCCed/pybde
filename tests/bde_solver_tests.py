@@ -4,6 +4,12 @@ from pybde import BDESolver
 
 class TestBDESolver(unittest.TestCase):
 
+    def test_raise_exception_if_end_before_start(self):
+        solver = BDESolver(lambda z : [not z[0][0]], [1], [0,1,1.5], [[False],[True],[True]])
+
+        with self.assertRaises(ValueError):
+            solver.solve(2, 1.7)
+
     def test_one_variable(self):
         solver = BDESolver(lambda z : [not z[0][0]], [1], [0,1,1.5], [[False],[True],[True]])
         solver.solve(1.6, 3)

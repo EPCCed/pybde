@@ -1,4 +1,5 @@
 from enum import IntEnum
+import math
 import heapq
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,7 +21,11 @@ class IndexType(IntEnum):
 
 class CandidateSwitchFinder:
 
-    def __init__(self, delays, x, start, end, forced_x=None):
+    def __init__(self, delays, x, start, end, forced_x=None, rel_tol=1e-09, abs_tol=0.0):
+
+        self.rel_tol = rel_tol
+        self.abs_tol = abs_tol
+
         self.start = start
         self.end = end
         self.delays = delays
@@ -35,50 +40,53 @@ class CandidateSwitchFinder:
             d = self.delays[i]
             for j in range(len(x)):
                 t = x[j]
-                if (t + d) <= end:                # Comparing floats occurs here - think about this
+                if self.is_time_before_end(t + d):
                     heapq.heappush(self.times, (t + d, i, IndexType.VARIABLE, j))
                     print("#### adding {}, {}, {}, {} - now have {}".format(t + d, i, IndexType.VARIABLE, j, self.times))
 
             if self.have_forced_inputs:
                 for j in range(len(forced_x)):
                     t = forced_x[j]
-                    if (t + d) <= end:                  # COMPARE TIMES HERE - HERE WE DON'T KNOW THE INDEX
+                    if self.is_time_before_end(t + d):
                         heapq.heappush(self.times, (t + d, i, IndexType.FORCED_INPUT, j))
 
         # pop all the indexes until start - this gets all the index correct before start
-        self.pop_until_start(start)
+        self.pop_until_start()
 
         # Add the start time in case it is not a candidate - give it no new index information
         heapq.heappush(self.times, (start, -1, IndexType.NONE, -1))
 
-
     def add_new_times(self, t, variable_state_index):
         for i in range(0, len(self.delays)):
             new_time = self.delays[i] + t
-            if new_time <= self.end:                   # COMPARE TIMES HERE
+            if self.is_time_before_end(new_time):
                 heapq.heappush(self.times, (new_time, i, IndexType.VARIABLE, variable_state_index) )
 
     def get_next_time(self):
-
         print("--> In get_next_time:  heapq is : {}".format(self.times))
         if len(self.times) > 0:
             next_time = self.pop_and_update_indices()
 
             print("--> In get_next_time:  next_time is : {}".format(next_time))
 
-            while len(self.times) > 0 and CandidateSwitchFinder.times_are_equal(self.times[0][0], next_time):
+            while len(self.times) > 0 and self.times_are_equal(self.times[0][0], next_time):
                 self.pop_and_update_indices()
 
             return next_time
         else:
             return None
 
-    @staticmethod
-    def times_are_equal(t1, t2):
-        return t1 == t2                                   # COMPARE TIMES
+    def times_are_equal(self, t1, t2):
+        return math.isclose(t1, t2, rel_tol=self.rel_tol, abs_tol=self.abs_tol)
 
-    def pop_until_start(self, start):
-        while len(self.times) > 0 and self.times[0][0] < start:      # COMPARE TIMES
+    def is_time_before_end(self, t):
+        if t < self.end:
+            return True
+        else:
+            return self.times_are_equal(t, self.end)
+
+    def pop_until_start(self):
+        while len(self.times) > 0 and self.times[0][0] < self.start:
             self.pop_and_update_indices()
 
     def pop_and_update_indices(self):
@@ -99,9 +107,13 @@ class CandidateSwitchFinder:
         print("== Candidate switches ==")
         print("  {}".format(self.times))
 
+
 class BDESolver:
 
-    def __init__(self,func,delays,x,y, forced_x=None, forced_y=None):
+    def __init__(self,func,delays,x,y, forced_x=None, forced_y=None, rel_tol=1e-09, abs_tol=0.0):
+
+        self.rel_tol = rel_tol
+        self.abs_tol = abs_tol
 
         self.func = func
         self.delays = delays
@@ -132,8 +144,8 @@ class BDESolver:
             raise ValueError("start_time ({}) must be greater than final input time ({}).".format(
                 start, self.x[-1]))
 
-        # TODO: Throw value error if:
-        # start is after end
+        if start >= end:
+            raise ValueError("start time ({}) must be greater then end time ({})".format(start, end))
 
         self.end_x = end
         self.start_x = start
@@ -142,7 +154,9 @@ class BDESolver:
         self.res_x = self.x.copy()
         self.res_y = self.y.copy()
 
-        candidate_switch_finder = CandidateSwitchFinder(self.delays,self.x,self.start_x, self.end_x,self.forced_x)
+        candidate_switch_finder = CandidateSwitchFinder(
+            self.delays, self.x, self.start_x, self.end_x, self.forced_x,
+            rel_tol=self.rel_tol, abs_tol=self.abs_tol)
 
         t = candidate_switch_finder.get_next_time()
         while t is not None:
