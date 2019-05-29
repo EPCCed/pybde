@@ -1,8 +1,13 @@
 from enum import IntEnum
 import math
+import logging
 import heapq
 import numpy as np
 import matplotlib.pyplot as plt
+
+logging.basicConfig(level=logging.DEBUG)
+
+logger = logging.getLogger(__name__)
 
 # Format of user defined function
 #
@@ -23,6 +28,8 @@ class CandidateSwitchFinder:
 
     def __init__(self, delays, x, start, end, forced_x=None, rel_tol=1e-09, abs_tol=0.0):
 
+        self.logger = logging.getLogger(__name__ + ".CandidateSwitchFinder")
+
         self.rel_tol = rel_tol
         self.abs_tol = abs_tol
 
@@ -42,7 +49,7 @@ class CandidateSwitchFinder:
                 t = x[j]
                 if self.is_time_before_end(t + d):
                     heapq.heappush(self.times, (t + d, i, IndexType.VARIABLE, j))
-                    print("#### adding {}, {}, {}, {} - now have {}".format(t + d, i, IndexType.VARIABLE, j, self.times))
+                    self.logger.debug("#### adding {}, {}, {}, {} - now have {}".format(t + d, i, IndexType.VARIABLE, j, self.times))
 
             if self.have_forced_inputs:
                 for j in range(len(forced_x)):
@@ -103,10 +110,6 @@ class CandidateSwitchFinder:
 
         return next_time
 
-    def print_state(self):
-        print("== Candidate switches ==")
-        print("  {}".format(self.times))
-
 
 class BDESolver:
 
@@ -160,34 +163,34 @@ class BDESolver:
 
         t = candidate_switch_finder.get_next_time()
         while t is not None:
-            print("t={}".format(t))
+            logger.debug("======================================================")
+            logger.debug("t=%f", t)
             Z = []
             for i in candidate_switch_finder.indices:
-                print("Index i = {} of res_y = {}".format(i, self.res_y))
+                logger.debug("Next delay is index %s of res_y = %s", i, self.res_y)
                 Z.append(self.res_y[i])
             
             if not self.have_forced_inputs:
-                print("Z {}".format(Z))
                 new_state = self.func(Z)
-                print("*** at t={} state is {}".format(t,new_state))
+                logger.debug("Input to model function for time t=%f is %s", t, Z)
             else:
                 Z2 = []
                 for i in candidate_switch_finder.forced_indices:
                     Z2.append(self.forced_y[i])
-                print("Z {} Z2 {}".format(Z,Z2))
                 new_state = self.func(Z,Z2)
-                print("*** at t={} state is {}".format(t,new_state))
+                logger.debug("Input to model function for time t=%f is %s, %s", t, Z, Z2)
+
+            logger.debug("New state at t=%f is %s", t, new_state)
 
             # Keep this state if it has changed or this is the end of the simulation
             if new_state != self.res_y[-1] or t == self.end_x:
-                print("State has changed so adding new state: {}".format(new_state))
+                logger.debug("State has changed so adding new state: %s", new_state)
                 self.res_x.append(t)
                 self.res_y.append(new_state)
                 candidate_switch_finder.add_new_times(t, len(self.res_x)-1)
             else:
-                print("State hasn't changed so not adding it")
+                logger.debug("State has not changed")
 
-            candidate_switch_finder.print_state()
             t = candidate_switch_finder.get_next_time()
             
         # If the last result is not the end time then add it in
