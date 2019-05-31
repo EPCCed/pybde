@@ -49,35 +49,48 @@ class CandidateSwitchFinder:
                 t = x[j]
                 if self.is_time_before_end(t + d):
                     heapq.heappush(self.times, (t + d, i, IndexType.VARIABLE, j))
-                    self.logger.debug("#### adding {}, {}, {}, {} - now have {}".format(t + d, i, IndexType.VARIABLE, j, self.times))
+                    self.logger.debug("Adding CSP (%s, %s, %s, %s)",
+                                      t + d, i, IndexType.VARIABLE, j)
 
             if self.have_forced_inputs:
                 for j in range(len(forced_x)):
                     t = forced_x[j]
                     if self.is_time_before_end(t + d):
                         heapq.heappush(self.times, (t + d, i, IndexType.FORCED_INPUT, j))
+                        self.logger.debug("Adding CSP (%s, %s, %s, %s)",
+                                          t + d, i, IndexType.FORCED_INPUT, j)
 
         # pop all the indexes until start - this gets all the index correct before start
         self.pop_until_start()
+        self.logger.debug("Processed all CSPs before start.")
 
         # Add the start time in case it is not a candidate - give it no new index information
         heapq.heappush(self.times, (start, -1, IndexType.NONE, -1))
+        self.logger.debug("Adding CSP (%s, %s, %s, %s)",
+                          start, -1, IndexType.NONE, -1)
 
     def add_new_times(self, t, variable_state_index):
         for i in range(0, len(self.delays)):
             new_time = self.delays[i] + t
             if self.is_time_before_end(new_time):
                 heapq.heappush(self.times, (new_time, i, IndexType.VARIABLE, variable_state_index) )
+                self.logger.debug("Adding CSP "
+                                  ""
+                                  ""
+                                  ""
+                                  "(%s, %s, %s, %s)",
+                                  new_time, i, IndexType.VARIABLE, variable_state_index)
 
     def get_next_time(self):
-        print("--> In get_next_time:  heapq is : {}".format(self.times))
+        self.logger.debug("CSPs: %s", self.times)
+
         if len(self.times) > 0:
             next_time = self.pop_and_update_indices()
 
-            print("--> In get_next_time:  next_time is : {}".format(next_time))
-
             while len(self.times) > 0 and self.times_are_equal(self.times[0][0], next_time):
                 self.pop_and_update_indices()
+
+            self.logger.debug("Next time is: %s", next_time)
 
             return next_time
         else:
@@ -99,14 +112,10 @@ class CandidateSwitchFinder:
     def pop_and_update_indices(self):
         next_time, delay_index, index_type, state_index = heapq.heappop(self.times)
 
-        print("--> In pop_and_update_indices :  popped : {}, {}, {}, {}".format(next_time, delay_index, index_type, state_index ))
-
         if index_type == IndexType.VARIABLE:
             self.indices[delay_index] = state_index
         elif index_type == IndexType.FORCED_INPUT:
             self.forced_indices[delay_index] = state_index
-
-        print("--> In pop_and_update_indices :  indices are : {}".format(self.indices))
 
         return next_time
 
@@ -166,8 +175,9 @@ class BDESolver:
             logger.debug("======================================================")
             logger.debug("t=%f", t)
             Z = []
-            for i in candidate_switch_finder.indices:
-                logger.debug("Next delay is index %s of res_y = %s", i, self.res_y)
+            for d_index in range(len(candidate_switch_finder.indices)):
+                i = candidate_switch_finder.indices[d_index]
+                logger.debug("Delay %s is at index %s of result list = %s", d_index, i, self.res_y)
                 Z.append(self.res_y[i])
             
             if not self.have_forced_inputs:
@@ -194,7 +204,8 @@ class BDESolver:
             t = candidate_switch_finder.get_next_time()
             
         # If the last result is not the end time then add it in
-        if self.res_x[-1] != self.end_x:                     # COMPARING TIMES HERE
+        last_time = self.res_x[-1]
+        if last_time < self.end_x and not math.isclose(last_time, self.end_x, rel_tol=self.rel_tol, abs_tol=self.abs_tol):
             self.res_x.append(self.end_x)
             self.res_y.append(self.res_y[-1])
 
