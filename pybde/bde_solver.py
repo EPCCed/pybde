@@ -1,13 +1,10 @@
 from enum import IntEnum
+import sys
 import math
 import logging
 import heapq
 import numpy as np
 import matplotlib.pyplot as plt
-
-logging.basicConfig(level=logging.DEBUG)
-
-logger = logging.getLogger(__name__)
 
 # Format of user defined function
 #
@@ -119,10 +116,15 @@ class CandidateSwitchFinder:
 
         return next_time
 
+# TODO: validate the data etc
+# todo: stop if too many evaluations
+
 
 class BDESolver:
 
-    def __init__(self,func,delays,x,y, forced_x=None, forced_y=None, rel_tol=1e-09, abs_tol=0.0):
+    def __init__(self, func, delays, x, y, forced_x=None, forced_y=None, rel_tol=1e-09, abs_tol=0.0):
+
+        self.logger = logging.getLogger(__name__)
 
         self.rel_tol = rel_tol
         self.abs_tol = abs_tol
@@ -131,6 +133,12 @@ class BDESolver:
         self.delays = delays
         self.x = x
         self.y = y
+
+        if forced_x is not None and forced_y is None:
+            raise ValueError("Must specify forced_y input if specifying forced_x input")
+
+        if forced_x is None and forced_y is not None:
+            raise ValueError("Must specify forced_x input if specifying forced_y input")
 
         self.have_forced_inputs = (forced_x is not None)
         self.forced_x = forced_x
@@ -142,9 +150,24 @@ class BDESolver:
         self.end_x = None
 
         # TODO - verify stuff
-        # x and y arrays are the same length
-        # forced x and y are the same length
-        # all state list are the same length
+        if len(x) != len(y):
+            raise ValueError("input x list and input y list must be the same length")
+
+        if self.have_forced_inputs:
+            if len(forced_x) != len(forced_y):
+                raise ValueError("input forced_x list and input forced_y list must be the same length")
+
+
+        num_state_variables = len(y[0])
+        for yy in y:
+            if len(yy) != num_state_variables:
+                raise ValueError("sublists of input y must all be the same length")
+
+        if self.have_forced_inputs:
+            num_forced_state_variables = len(forced_y[0])
+            for yy in forced_y:
+                if len(yy) != num_forced_state_variables:
+                    raise ValueError("sublists of input forced_y must all be the same length")
 
     def solve(self, start, end):
 
@@ -172,34 +195,34 @@ class BDESolver:
 
         t = candidate_switch_finder.get_next_time()
         while t is not None:
-            logger.debug("======================================================")
-            logger.debug("t=%f", t)
+            self.logger.debug("======================================================")
+            self.logger.debug("t=%f", t)
             Z = []
             for d_index in range(len(candidate_switch_finder.indices)):
                 i = candidate_switch_finder.indices[d_index]
-                logger.debug("Delay %s is at index %s of result list = %s", d_index, i, self.res_y)
+                self.logger.debug("Delay %s is at index %s of result list = %s", d_index, i, self.res_y)
                 Z.append(self.res_y[i])
             
             if not self.have_forced_inputs:
                 new_state = self.func(Z)
-                logger.debug("Input to model function for time t=%f is %s", t, Z)
+                self.logger.debug("Input to model function for time t=%f is %s", t, Z)
             else:
                 Z2 = []
                 for i in candidate_switch_finder.forced_indices:
                     Z2.append(self.forced_y[i])
                 new_state = self.func(Z,Z2)
-                logger.debug("Input to model function for time t=%f is %s, %s", t, Z, Z2)
+                self.logger.debug("Input to model function for time t=%f is %s, %s", t, Z, Z2)
 
-            logger.debug("New state at t=%f is %s", t, new_state)
+            self.logger.debug("New state at t=%f is %s", t, new_state)
 
             # Keep this state if it has changed or this is the end of the simulation
             if new_state != self.res_y[-1] or t == self.end_x:
-                logger.debug("State has changed so adding new state: %s", new_state)
+                self.logger.debug("State has changed so adding new state: %s", new_state)
                 self.res_x.append(t)
                 self.res_y.append(new_state)
                 candidate_switch_finder.add_new_times(t, len(self.res_x)-1)
             else:
-                logger.debug("State has not changed")
+                self.logger.debug("State has not changed")
 
             t = candidate_switch_finder.get_next_time()
             
@@ -209,48 +232,24 @@ class BDESolver:
             self.res_x.append(self.end_x)
             self.res_y.append(self.res_y[-1])
 
-    @staticmethod
-    def to_logical(x):
-        """Coverts integer numpy arrays to logical numpy arrays."""
-        return (np.array(x) > 0).tolist()
+        return self.res_x, self.res_y
 
-    @staticmethod
-    def to_plot(x, y):
-        res_x = [x[0]]
-        res_y = [y[0]]
-        for i in range(1, len(x)):
-            res_x.append(x[i])
-            res_y.append(y[i-1])
-            res_x.append(x[i])
-            res_y.append(y[i])
-        return res_x, res_y
+    def print_result(self, file=sys.stdout):
 
-    def get_plots(self, x, y):
-        res_x = []
-        res_y = []
-
-        res_x = [self.res_x[0]]
-        for i in range(1, len(x)):
-            res_x.append(x[i])
-            res_x.append(x[i])
-
-        for v in range(0, len(y[0])):
-            plot_y = []
-            for i in range(len(y)-1):
-                plot_y.append(y[i][v])
-                plot_y.append(y[i][v])
-            plot_y.append(y[-1][v])
-            res_y.append(plot_y)
-
-        return res_x, res_y
+        for i in range(len(self.res_x)-1):
+            print("{:8.2f} -> {:8.2f} : {}".format(
+                self.res_x[i], self.res_x[i+1], BDESolver.boolean_array_to_string(self.res_y[i]), file=file))
+        if self.res_x[-2] != self.res_x[-1]:
+            print("{:8.2f} -> {:8.2f} : {}".format(
+                self.res_x[-1], self.res_x[-1], BDESolver.boolean_array_to_string(self.res_y[-1]), file=file))
 
 
-    def show_plot(self, variable_names=[], forcing_variable_names=[]):
+    def plot_result(self, variable_names=[], forcing_variable_names=[]):
 
-        x_data, all_y_data = self.get_plots(self.res_x, self.res_y)
+        x_data, all_y_data = BDESolver.to_plots(self.res_x, self.res_y)
 
         if self.have_forced_inputs:
-            forced_x_data, all_forced_y_data = self.get_plots(self.forced_x, self.forced_y)
+            forced_x_data, all_forced_y_data = BDESolver.to_plots(self.forced_x, self.forced_y, end_time=self.end_x)
             num_forced_plots = len(all_forced_y_data)
             num_plots = len(all_y_data) + num_forced_plots
 
@@ -282,5 +281,99 @@ class BDESolver:
 
             num_plot += 1
 
-        plt.tight_layout()
+            plt.tight_layout()
+
+    def show_result(self, variable_names=[], forcing_variable_names=[]):
+        self.plot_result()
         plt.show()
+
+    def plot_inputs(self, start, end, variable_names=[], forcing_variable_names=[],):
+
+        x_data, all_y_data = BDESolver.to_plots(self.x, self.y, end_time=start)
+
+        xlim = None # limit of x axis
+        if self.have_forced_inputs:
+            forced_x_data, all_forced_y_data = BDESolver.to_plots(self.forced_x, self.forced_y, end_time=end)
+
+            num_forced_plots = len(all_forced_y_data)
+            num_plots = len(all_y_data) + num_forced_plots
+
+            num_plot = 1
+
+            for y_data in all_forced_y_data:
+                plt.subplot(num_plots, 1, num_plot)
+                plt.plot(forced_x_data, y_data)
+                if num_plot <= len(forcing_variable_names):
+                    plt.title(forcing_variable_names[num_plot - 1])
+                plt.yticks([0, 1])
+                plt.grid(True)
+                num_plot += 1
+                xlim = plt.xlim()
+
+        else:
+            num_plots = len(all_y_data)
+            num_forced_plots = 0
+            num_plot = 1
+
+        for y_data in all_y_data:
+            plt.subplot(num_plots, 1, num_plot)
+            plt.plot(x_data, y_data)
+            if num_plot - num_forced_plots <= len(variable_names):
+                plt.title(variable_names[num_plot - num_forced_plots - 1])
+            if num_plot == num_plots:
+                plt.xlabel('time')
+            plt.yticks([0, 1])
+            plt.grid(True)
+
+            if self.have_forced_inputs:
+                # Extend plot to the end of the simulations
+                plt.xlim(xlim)
+
+            num_plot += 1
+
+        plt.tight_layout()
+
+    def show_inputs(self, start, end, variable_names=[], forcing_variable_names=[],):
+        plt = self.plot_inputs(
+            start, end, variable_names=variable_names,forcing_variable_names=forcing_variable_names)
+        plt.show()
+
+
+
+    def to_logical(x):
+        """Coverts integer numpy arrays to logical list."""
+        return (np.array(x) > 0).tolist()
+
+    @staticmethod
+    def boolean_array_to_string(a):
+        res = ""
+        for x in a:
+            if x:
+                res += "T "
+            else:
+                res += "F "
+        return res
+
+    @staticmethod
+    def to_plots(x, y, end_time=-1):
+        res_x = []
+        res_y = []
+
+        res_x = [x[0]]
+        for i in range(1, len(x)):
+            res_x.append(x[i])
+            res_x.append(x[i])
+        if end_time > 0:
+            res_x.append(end_time)
+
+        for v in range(0, len(y[0])):
+            plot_y = []
+            for i in range(len(y)-1):
+                plot_y.append(y[i][v])
+                plot_y.append(y[i][v])
+            plot_y.append(y[-1][v])
+            if end_time > 0:
+                plot_y.append(plot_y[-1])
+            res_y.append(plot_y)
+
+        return res_x, res_y
