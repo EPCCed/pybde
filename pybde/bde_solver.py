@@ -81,12 +81,17 @@ class CandidateSwitchFinder:
     def get_next_time(self):
         self.logger.debug("CSPs: %s", self.times)
 
+        times = []
         if len(self.times) > 0:
             next_time = self.pop_and_update_indices()
+            times.append(next_time)
 
             while len(self.times) > 0 and self.times_are_equal(self.times[0][0], next_time):
+                times.append(self.times[0][0])
                 self.pop_and_update_indices()
 
+            # take the median time to avoid drift towards the lowest
+            next_time = times[len(times)//2]
             self.logger.debug("Next time is: %s", next_time)
 
             return next_time
@@ -149,7 +154,6 @@ class BDESolver:
         self.start_x = None
         self.end_x = None
 
-        # TODO - verify stuff
         if len(x) != len(y):
             raise ValueError("input x list and input y list must be the same length")
 
