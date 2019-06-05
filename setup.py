@@ -8,6 +8,7 @@ setup(name='pybde',
       version='0.1',
       description='Binary Delay Equation simulator',
       long_description=readme(),
+      long_description_content_type='text/markdown',
       python_requires='>=3.5',
       classifiers=[
         'Development Status :: 3 - Alpha',
