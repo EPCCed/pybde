@@ -88,7 +88,7 @@ if __name__ == "__main__":
 This will display the following plot showing the state of the variable
 over the duration of the simulation.
 
-[[images/one_variable_one_delay_output.png]]
+![One variable one delay output](https://github.com/EPCCed/pybde/wiki/images/one_variable_one_delay_output.png)
 
 ## Multiple variables and delays
 
