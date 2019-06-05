@@ -118,7 +118,7 @@ def my_two_variable_model(z):
 
 We wish to start the simulation at t=2 with input states until this point as shown below:
 
-[[images/two_variables_input.png]]
+![Two variables input plot](https://github.com/EPCCed/pybde/wiki/images/two_variables_input.png)
 
 So we specify the input times and states as:
 
@@ -161,7 +161,7 @@ over the duration of the simulation.  Note how the optional argument
 `variable_names` has been passed to the `show_plot` function to specify
 the labels for the variables.
 
-[[images/two_variables_output.png]]
+![Two variables output plot](https://github.com/EPCCed/pybde/wiki/images/two_variables_output.png)
 
 ## Forcing inputs
 
@@ -199,7 +199,7 @@ input_states = [ [True] ]
 
 The inputs to the simulation are shown in the following plot:
 
-[[images/inputs_plot.png]]
+![inputs plot](https://github.com/EPCCed/pybde/wiki/images/inputs_plot.png)
 
 When using forcing inputs the state of forcing inputs are the various
 time delays is passed to the model function as a second 
@@ -255,7 +255,7 @@ if __name__ == "__main__":
 
 Running this simulation produces the following plots:
 
-[[images/forcing_inputs_output.png]]
+![Forcing inputs output plot](https://github.com/EPCCed/pybde/wiki/images/forcing_inputs_output.png)
 
 
 ## Obtaining the result data
@@ -284,7 +284,7 @@ result_y = [[True, True], [True, False], [False, False], [False, True], [True, T
 
 Which corresponds to the following plot:
 
-[[images/two_variables_output.png]]
+![Two variables output plot](https://github.com/EPCCed/pybde/wiki/images/two_variables_output.png)
 
 Another way to print out the result is to use the `print_result` method which will print the
 result over multiple lines in a format that may be easier to read.  The following code
