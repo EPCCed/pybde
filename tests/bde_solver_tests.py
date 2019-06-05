@@ -233,8 +233,6 @@ class TestBDESolver(unittest.TestCase):
 
         x_end = 5
 
-        print("x before: {}".format(x))
-
         forcing_x = [0, 0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75, 5]
         forcing_y = [[False], [True], [False], [True], [False], [True], [False], [True], [False], [True], [False], [False]]
 
@@ -244,10 +242,6 @@ class TestBDESolver(unittest.TestCase):
 
         expected_x = [0, 1, 1.25, 1.75, 2, 2.25, 2.75, 3, 4, 4.25, 4.75, 5]
         expected_y = [[True, False],[False,False], [False,True], [False,False], [False,True], [True,True], [False,True], [True,True], [True,False], [True,True], [True,False], [False,False]]
-
-        print("Result x {}\nResult y{}\nExpected x:{}\nExpected y:{}".format(solver.res_x,solver.res_y,expected_x,expected_y))
-
-        print("x after: {}".format(x))
 
         self.assertEqual(expected_x, solver.res_x)
         self.assertEqual(expected_y, solver.res_y)
@@ -260,8 +254,9 @@ class TestBDESolver(unittest.TestCase):
 
         delays = [1, 1, 1, 1]
 
-        # NOTE: In the original Matlab test this used the line below, but the second point is inconsistent with the
-        # model is changed for the output.  We do not yet support this functionality so change it just now.
+        # NOTE: In the original Matlab test this used the line below, but the second point is
+        # inconsistent with the model is changed for the output.  We do not yet support this
+        # functionality so change it just now.
         #x = [0, 1]
         #y = [[True, False], [True, False]]
         x = [0]
@@ -270,14 +265,17 @@ class TestBDESolver(unittest.TestCase):
         x_end = 5
 
         forcing_x = [0, 0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75, 5]
-        forcing_y = BDESolver.to_logical([[0,1], [1,1], [0,1], [1,1], [0,1], [1,1], [0,1], [1,1], [0,1], [1,1], [0,1], [0,1]])
+        forcing_y = BDESolver.to_logical(
+            [[0,1], [1,1], [0,1], [1,1], [0,1], [1,1], [0,1], [1,1], [0,1], [1,1], [0,1], [0,1]])
 
-        solver = BDESolver(lambda z, z2: [z[0][1] and z2[3][1], (not z[1][0]) or z2[2][0] ], delays, x, y, forcing_x, forcing_y)
+        solver = BDESolver(lambda z, z2: [z[0][1] and z2[3][1], (not z[1][0]) or z2[2][0] ],
+                           delays, x, y, forcing_x, forcing_y)
 
         solver.solve(1, x_end)
 
         expected_x = [0, 1, 1.25, 1.75, 2, 2.25, 2.75, 3, 4, 4.25, 4.75, 5]
-        expected_y = BDESolver.to_logical([[1,0], [0,0], [0,1], [0,0], [0,1], [1,1], [0,1], [1,1], [1,0], [1,1], [1,0], [0,0]])
+        expected_y = BDESolver.to_logical(
+            [[1,0], [0,0], [0,1], [0,0], [0,1], [1,1], [0,1], [1,1], [1,0], [1,1], [1,0], [0,0]])
 
         self.assertEqual(expected_x, solver.res_x)
         self.assertEqual(expected_y, solver.res_y)
@@ -307,15 +305,81 @@ class TestBDESolver(unittest.TestCase):
 
         solver.solve(1, x_end)
 
-        print("************* Result is t = {}, y = {} ".format(solver.res_x, solver.res_y))
-
         expected_x = [0, 1, 1.15, 1.25, 1.35, 1.4]
         expected_y = BDESolver.to_logical([[1,0], [0,0], [1,0], [1,1], [0,1], [0,1]])
-
 
         self.assertEqual(expected_x, solver.res_x)
         self.assertEqual(expected_y, solver.res_y)
 
+    def test_error_when_first_candidate_switch_point_is_not_zero(self):
+        """
+        Tests that error is raised when the first input switch point
+        is not at time zero.
+        """
+
+        tau1 = 1
+        tau2 = 0.5
+        delays  = [tau1, tau2]
+
+        x = [0.2,0.5,1.5,1.7]
+        y = [[True,True], [True,False], [False,False], [False,False]]
+
+        x_end = 5
+
+        with self.assertRaises(ValueError):
+            BDESolver(lambda z :[ z[0][1], not z[1][0] ], delays, x, y)
+
+    def test_error_when_first_input_switch_point_is_not_zero(self):
+        """
+        Tests that error is raised when the first input switch point
+        is not at time zero.
+        """
+
+        tau1 = 1
+        tau2 = 0.5
+        delays  = [tau1, tau2]
+
+        x = [0.2,0.5,1.5,1.7]
+        y = [[True,True], [True,False], [False,False], [False,False]]
+
+        x_end = 5
+
+        with self.assertRaises(ValueError):
+            BDESolver(lambda z :[ z[0][1], not z[1][0] ], delays, x, y)
+
+    def test_error_when_first_forced_input_switch_point_is_not_zero(self):
+        """
+        Tests that error is raised when the first forced input switch point
+        is not at time zero.
+        """
+
+        tau1 = 1
+        tau2 = 0.5
+        delays = [tau1, tau2]
+
+        x = [0.0, 0.5, 1.5, 1.7]
+        y = [[True, True], [True, False], [False, False], [False, False]]
+
+        forced_x = [1]
+        forced_y = [[True]]
+
+        x_end = 5
+
+        with self.assertRaises(ValueError):
+            BDESolver(lambda z: [z[0][1], not z[1][0]], delays, x, y, forced_x, forced_y)
+
+    def test_error_when_given_negative_delay(self):
+        tau1 = 1
+        tau2 = -0.5
+        delays = [tau1, tau2]
+
+        x = [0.0, 0.5, 1.5, 1.7]
+        y = [[True, True], [True, False], [False, False], [False, False]]
+
+        x_end = 5
+
+        with self.assertRaises(ValueError):
+            BDESolver(lambda z: [z[0][1], not z[1][0]], delays, x, y)
 
 
 if __name__ == '__main__':

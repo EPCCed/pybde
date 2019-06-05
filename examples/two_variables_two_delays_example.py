@@ -1,6 +1,7 @@
 from pybde import BDESolver
 import matplotlib.pyplot as plt
 
+
 def my_two_variable_model(z):
     x1 = 0
     x2 = 1
@@ -8,7 +9,9 @@ def my_two_variable_model(z):
     tau2 = 1
     return [z[tau1][x2], not z[tau2][x1]]
 
+
 def main():
+
     input_times = [0, 1, 1.5]
     input_states = [ [True, True], [True, False], [False, False] ]
     delay_parameters = [ 1, 0.5 ]
@@ -25,14 +28,12 @@ def main():
 
     my_bde_solver.print_result()
 
-    t_plot_data, y_plot_data = BDESolver.to_plot(result_t, result_y)
+    t_plot_data, y_plot_data = BDESolver.to_plots(result_t, result_y)
 
     print("t_plot_data = {}".format(t_plot_data))
     print("y_plot_data = {}".format(y_plot_data))
 
-    my_bde_solver.plot_result(variable_names=['x1','x2'])
-    plt.show()
-
+    my_bde_solver.show_result(variable_names=['x1','x2'])
 
 
 if __name__ == "__main__":
