@@ -5,7 +5,7 @@ def readme():
         return f.read()
         
 setup(name='pybde',
-      version='0.1',
+      version='0.2  ',
       description='Binary Delay Equation simulator',
       long_description=readme(),
       long_description_content_type='text/markdown',
@@ -21,7 +21,7 @@ setup(name='pybde',
         'Operating System :: OS Independent',
       ],
       keywords='BDE, binary, delay, equations, solver, simulator',
-      url='https://github.com/EPCCed/pynmmso/wiki/pybde',
+      url='https://github.com/EPCCed/pybde/wiki/pybde',
       author='Ally Hume',
       author_email='a.hume@epcc.ed.ac.uk',
       license='MIT',
