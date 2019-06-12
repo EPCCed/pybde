@@ -1,7 +1,7 @@
 ## Introduction
 
-Binary Delay Equations (BDEs) can be used to model a variety of problems.  ```pybde``` allows
-to you write binary delay equations models in Python and simulate them.
+Boolean Delay Equations (BDEs) can be used to model a variety of problems.  ```pybde``` allows
+to you write Boolean delay equations models in Python and simulate them.
 
 ## Install pybde
 
