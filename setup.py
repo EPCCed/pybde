@@ -5,7 +5,7 @@ def readme():
         return f.read()
         
 setup(name='pybde',
-      version='0.2  ',
+      version='0.3',
       description='Binary Delay Equation simulator',
       long_description=readme(),
       long_description_content_type='text/markdown',

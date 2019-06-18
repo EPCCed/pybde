@@ -466,6 +466,56 @@ class BDESolver:
 
             plt.tight_layout()
 
+    def plot_result_single_graph(self, variable_names=None, forcing_variable_names=None):
+        """
+        Plots the simulation result to matplotlib.
+
+        Parameters
+        -----------
+
+        variable_names : list of string
+            Names of the variables. Used to label the plots.  Optional.
+        forcing_variable_names : list of string
+            Names of the forced inputs . Used to label the plots.  Optional.
+        """
+        x_data, all_y_data = BDESolver.to_plots(self.res_x, self.res_y)
+
+        if self.have_forced_inputs:
+            forced_x_data, all_forced_y_data = \
+                BDESolver.to_plots(self.forced_x, self.forced_y, end_time=self.end_x)
+            num_forced_plots = len(all_forced_y_data)
+            num_plots = len(all_y_data) + num_forced_plots
+
+            num_plot = 1
+
+            for y_data in all_forced_y_data:
+                plt.subplot(num_plots, 1, num_plot)
+                plt.plot(forced_x_data, y_data)
+                if forcing_variable_names and num_plot <= len(forcing_variable_names):
+                    plt.title(forcing_variable_names[num_plot - 1])
+                plt.yticks([0, 1])
+                plt.grid(True)
+                num_plot += 1
+
+        else:
+            num_plots = len(all_y_data)
+            num_forced_plots = 0
+            num_plot = 1
+
+        for y_data in all_y_data:
+            plt.subplot(num_plots, 1, num_plot)
+            plt.plot(x_data, y_data)
+            if variable_names and num_plot - num_forced_plots <= len(variable_names):
+                plt.title(variable_names[num_plot - num_forced_plots - 1])
+            if num_plot == num_plots:
+                plt.xlabel('time')
+            plt.yticks([0, 1])
+            plt.grid(True)
+
+            num_plot += 1
+
+            plt.tight_layout()
+
     def show_result(self, variable_names=None, forcing_variable_names=None):
         """
         Plots the simulation result to matplotlib and shows it.
@@ -650,3 +700,96 @@ class BDESolver:
             res_y.append(plot_y)
 
         return res_x, res_y
+
+    @staticmethod
+    def to_plots_for_single_graph(x, y, end_time=-1):
+        """
+        Converts switch point data into plot data format.
+
+        Parameters
+        ----------
+
+        x : list of float
+            Switch point time values.
+        y : list of lists of boolean
+            List of list of state variables corresponding to the time values in the x parameter.
+        end_time : float
+            Final simulation time. Optional.
+        Returns
+        -------
+
+        list of float, list of list of integers
+            The first list is the time values of the plot format data, the second list contains
+            lists of 0s and 1s representing the variable states at these time points.
+        """
+        res_x = []
+        res_y = []
+
+        res_x = [x[0]]
+        for i in range(1, len(x)):
+            res_x.append(x[i])
+            res_x.append(x[i])
+        if end_time > 0:
+            res_x.append(end_time)
+
+        for v in range(0, len(y[0])):
+            plot_y = []
+            for i in range(len(y)-1):
+                plot_y.append(y[i][v] + v * 0.05)     # TODO - work out the best way to plot calc the offset give the number of plots
+                plot_y.append(y[i][v] + v * 0.05)
+            plot_y.append(y[-1][v] + v * 0.05)
+            if end_time > 0:
+                plot_y.append(plot_y[-1])
+            res_y.append(plot_y)
+
+        return res_x, res_y
+
+    @staticmethod
+    def to_descrete(x, y):
+        # This is very basic version
+        res_x = x.tolist()
+
+        mn = y.min(axis=0)
+        mx = y.max(axis=0)
+
+        foo = (y-mn) / (mx-mn)
+
+        bar = (foo > 0.5)  # TODO: take in this as a threshold parameter
+
+        res_y = bar.tolist()
+
+        return BDESolver.remove_non_switch_points(res_x, res_y)
+
+    @staticmethod
+    def remove_non_switch_points(x, y):
+        previous_y = None
+        res_x = []
+        res_y = []
+        for i, yy in enumerate(y):
+            if yy != previous_y:
+                res_x.append(x[i])
+                res_y.append(yy)
+                previous_y = yy
+        if res_x[-1] != x[-1]:
+            res_x.append(x[-1])
+            res_y.append(y[-1])
+
+        return res_x, res_y
+
+    @staticmethod
+    def cut(x, y, cut_time):
+        res_x = []
+        res_y = []
+        for i, xx in enumerate(x):
+            if xx <= cut_time:     # TODO - do a proper comparison
+                res_x.append(xx)
+                res_y.append(y[i])
+
+        return res_x, res_y
+
+
+
+
+
+
+
