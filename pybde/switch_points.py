@@ -11,11 +11,23 @@ class SwitchPoints:
         self.label = label
         self.style = style
 
+        # Pad out the state values to be the length of the inputs
+        while len(y) < len(t):
+            y.append(not y[-1])
+
+        # TODO: flag error if y is longer than t
+
+        # TODO: test that times are incrementing
+
+        # TODO: test that end is beyond last switch time - may need to be careful with this for results - this may just be an input issue for history data.
+
+
     def cut(self, new_end):
         res_t = []
         res_y = []
         for i, tt in enumerate(self.t):
             if tt <= new_end:     # TODO - do a proper comparison
+                # TODO - probably do not want a switch point on the end of an input so cut probably ignores that
                 res_t.append(tt)
                 res_y.append(self.y[i])
 
@@ -110,7 +122,13 @@ class SwitchPoints:
 
     @staticmethod
     def merge(inputs):
-        x = [0]
+
+        # Check all inputs have same start time
+        for i in range(len(inputs)-1):
+            if inputs[i].t[0] != inputs[i+1].t[0]:
+                raise ValueError("Cannot merge inputs with different start times")
+
+        x = [inputs[0].t[0]]
         y = []
         indexes = [0] * len(inputs)
         y.append(SwitchPoints._get_state(indexes, inputs))

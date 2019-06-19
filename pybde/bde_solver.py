@@ -264,6 +264,23 @@ class BDESolver:
         self.x, self.y = SwitchPoints.merge(inputs)
         self.inputs = inputs
 
+        # Validate history switch points
+        for data in inputs:
+            if data.t[0] != 0:
+                raise ValueError("All history data must start at t=0")
+
+        # All inputs must end at the same time, this will be the simulation start time
+        self.start_x = inputs[0].end
+        for inp in inputs:
+            if inp.end != self.start_x :
+                raise ValueError("All history data must end at same time.")
+
+        # Validate forced inputs
+        if forced_inputs:
+            for data in forced_inputs:
+                if data.t[0] != 0:
+                    raise ValueError("All forced input data must start at t=0")
+
         self.forced_x = None
         self.forced_y = None
         self.have_forced_inputs = (forced_inputs is not None)
@@ -272,41 +289,20 @@ class BDESolver:
 
         self.res_x = None
         self.res_y = None
-        self.start_x = None
         self.end_x = None
-
-        # TODO: Need to validate in terms of the switch points input
-
-        if len(self.x) != len(self.y):
-            raise ValueError("input x list and input y list must be the same length")
-
-        if self.x[0] != 0:
-            raise ValueError("First input switch time in x must be 0.")
-
-        if self.have_forced_inputs:
-            if len(self.forced_x) != len(self.forced_y):
-                raise ValueError(
-                    "input forced_x list and input forced_y list must be the same length")
-            if self.forced_x[0] != 0:
-                raise ValueError("First forced input switch time in x_forced must be 0.")
 
         # Validate delays are all positive
         for d in delays:
             if d < 0:
                 raise ValueError("All delays time must be positive")
 
-        num_state_variables = len(self.y[0])
-        for yy in self.y:
-            if len(yy) != num_state_variables:
-                raise ValueError("sublists of input y must all be the same length")
+        if self.start_x < max(self.delays):
+            raise ValueError(
+                "History must extend greater than or equal to the maximum delay ({}).".format(
+                    max(self.delays)))
 
-        if self.have_forced_inputs:
-            num_forced_state_variables = len(self.forced_y[0])
-            for yy in self.forced_y:
-                if len(yy) != num_forced_state_variables:
-                    raise ValueError("sublists of input forced_y must all be the same length")
 
-    def solve(self, start, end):
+    def solve(self, end):
         """
         Run the simulation from the given start time until the given end time.
 
@@ -326,20 +322,10 @@ class BDESolver:
             these switch points.
         """
 
-        if start < max(self.delays):
-            raise ValueError(
-                "start_time ({}) must be greater than or equal to the maximum delay ({}).".format(
-                    start, max(self.delays)))
-
-        if start <= self.x[-1]:
-            raise ValueError("start_time ({}) must be greater than final input time ({}).".format(
-                start, self.x[-1]))
-
-        if start >= end:
-            raise ValueError("start time ({}) must be less then end time ({})".format(start, end))
+        if self.start_x >= end:
+            raise ValueError("end time ({}) must be greater than simulation start time({})".format(end, self.start_x))
 
         self.end_x = end
-        self.start_x = start
 
         # Result arrays - we start with the given history
         self.res_x = self.x.copy()
