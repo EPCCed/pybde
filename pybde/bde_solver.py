@@ -5,7 +5,7 @@ import logging
 import heapq
 import numpy as np
 import matplotlib.pyplot as plt
-
+from pybde.switch_points import SwitchPoints
 
 class IndexType(IntEnum):
     """
@@ -249,9 +249,9 @@ class BDESolver:
     rel_tol : float
         Relative tolerance used when comparing times. Default is 1e-08
     abs_tol : float
-        Absolute tolernace used when comparing times. Default is 0.0
+        Absolute tolerance used when comparing times. Default is 0.0
     """
-    def __init__(self, func, delays, x, y, forced_x=None, forced_y=None,
+    def __init__(self, func, delays, inputs, forced_inputs=None,
                  rel_tol=1e-09, abs_tol=0.0):
 
         self.logger = logging.getLogger(__name__)
@@ -261,32 +261,30 @@ class BDESolver:
 
         self.func = func
         self.delays = delays
-        self.x = x
-        self.y = y
+        self.x, self.y = SwitchPoints.merge(inputs)
+        self.inputs = inputs
 
-        if forced_x is not None and forced_y is None:
-            raise ValueError("Must specify forced_y input if specifying forced_x input")
-
-        if forced_x is None and forced_y is not None:
-            raise ValueError("Must specify forced_x input if specifying forced_y input")
-
-        self.have_forced_inputs = (forced_x is not None)
-        self.forced_x = forced_x
-        self.forced_y = forced_y
+        self.forced_x = None
+        self.forced_y = None
+        self.have_forced_inputs = (forced_inputs is not None)
+        if self.have_forced_inputs:
+            self.forced_x, self.forced_y = SwitchPoints.merge(forced_inputs)
 
         self.res_x = None
         self.res_y = None
         self.start_x = None
         self.end_x = None
 
-        if len(x) != len(y):
+        # TODO: Need to validate in terms of the switch points input
+
+        if len(self.x) != len(self.y):
             raise ValueError("input x list and input y list must be the same length")
 
         if self.x[0] != 0:
             raise ValueError("First input switch time in x must be 0.")
 
         if self.have_forced_inputs:
-            if len(forced_x) != len(forced_y):
+            if len(self.forced_x) != len(self.forced_y):
                 raise ValueError(
                     "input forced_x list and input forced_y list must be the same length")
             if self.forced_x[0] != 0:
@@ -297,14 +295,14 @@ class BDESolver:
             if d < 0:
                 raise ValueError("All delays time must be positive")
 
-        num_state_variables = len(y[0])
-        for yy in y:
+        num_state_variables = len(self.y[0])
+        for yy in self.y:
             if len(yy) != num_state_variables:
                 raise ValueError("sublists of input y must all be the same length")
 
         if self.have_forced_inputs:
-            num_forced_state_variables = len(forced_y[0])
-            for yy in forced_y:
+            num_forced_state_variables = len(self.forced_y[0])
+            for yy in self.forced_y:
                 if len(yy) != num_forced_state_variables:
                     raise ValueError("sublists of input forced_y must all be the same length")
 
@@ -385,14 +383,13 @@ class BDESolver:
 
             t = candidate_switch_finder.get_next_time()
 
-        # If the last result is not the end time then add it in
-        last_time = self.res_x[-1]
-        if last_time < self.end_x and not math.isclose(
-                last_time, self.end_x, rel_tol=self.rel_tol, abs_tol=self.abs_tol):
-            self.res_x.append(self.end_x)
-            self.res_y.append(self.res_y[-1])
+        # Copy over labels and styles
+        results = SwitchPoints.unmerge(self.res_x, self.res_y, self.end_x)
+        for i, result in enumerate(results):
+            result.label = self.inputs[i].label
+            result.style = self.inputs[i].style
 
-        return self.res_x, self.res_y
+        return results
 
     def print_result(self, file=sys.stdout):
         """

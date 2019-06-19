@@ -1,6 +1,6 @@
 import unittest
 from pybde import BDESolver
-
+from pybde import SwitchPoints
 
 class TestBDESolver(unittest.TestCase):
 
@@ -11,34 +11,45 @@ class TestBDESolver(unittest.TestCase):
             solver.solve(2, 1.7)
 
     def test_one_variable(self):
-        solver = BDESolver(lambda z : [not z[0][0]], [1], [0,1,1.5], [[False],[True],[True]])
-        solver.solve(1.6, 3)
 
-        expected_x = [0,1,1.5,2,3]
-        expected_y = [[False],[True],[True],[False],[True]]
+        history = SwitchPoints([0, 1], [False, True], 1.5)
+        solver = BDESolver(lambda z : [not z[0][0]], [1], [history])
+        [output] = solver.solve(1.5, 3)
 
-        self.assertEqual(expected_x, solver.res_x)
-        self.assertEqual(expected_y, solver.res_y)
+        expected_t = [0, 1, 2, 3]
+        expected_y = [False, True, False, True]
 
-    def test_single_input_switch(self):
-        solver = BDESolver(lambda z : [not z[0][0]], [1], [0], [[False]])
-        solver.solve(1,3)
+        self.assertEqual(expected_t, output.t)
+        self.assertEqual(expected_y, output.y)
+        self.assertEqual(3, output.end)
 
-        expected_x = [0,1,2,3]
-        expected_y = [[False],[True],[False],[True]]
+    def test_one_variable_one_history_switch(self):
 
-        self.assertEqual(expected_x, solver.res_x)
-        self.assertEqual(expected_y, solver.res_y)
+        history = SwitchPoints([0], [False], 1)
 
-    def test_start_time_is_a_switch_but_not_candidate_from_input(self):
-        solver = BDESolver(lambda z : [not z[0][0]], [1], [0], [[False]])
-        solver.solve(1.5, 3)
+        solver = BDESolver(lambda z : [not z[0][0]], [1], [history])
+        [output] = solver.solve(1,3)
 
-        expected_x = [0,1.5,2.5,3]
-        expected_y = [[False],[True],[False],[False]]
+        expected_t = [0,1,2,3]
+        expected_y = [False, True, False, True]
 
-        self.assertEqual(expected_x, solver.res_x)
-        self.assertEqual(expected_y, solver.res_y)
+        self.assertEqual(expected_t, output.t)
+        self.assertEqual(expected_y, output.y)
+        self.assertEqual(3, output.end)
+
+    def test_start_time_is_a_switch_but_not_candidate_from_history(self):
+
+        history = SwitchPoints([0], [False], 1.5)
+
+        solver = BDESolver(lambda z : [not z[0][0]], [1], [history])
+        [output] = solver.solve(1.5, 3)
+
+        expected_t = [0,1.5,2.5]
+        expected_y = [False, True, False]
+
+        self.assertEqual(expected_t, output.t)
+        self.assertEqual(expected_y, output.y)
+        self.assertEqual(3, output.end)
 
     def test_rounding_issues(self):
         """
@@ -77,20 +88,21 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        x = [0, 0.5, 1.5, 1.7]
-        y = BDESolver.to_logical([[1, 1], [1, 0], [0, 0], [0, 0]])
+        history_a = SwitchPoints([0, 1.5], [True, False], 1.8)
+        history_b = SwitchPoints([0, 0.5], [True, False], 1.8)
 
         x_end = 5.2
 
-        solver = BDESolver(lambda z:[z[0][1], not z[1][0]], delays, x, y)
-        solver.solve(1.8, x_end)
+        solver = BDESolver(lambda z:[z[0][1], not z[1][0]], delays, [history_a, history_b])
+        [output_a, output_b] = solver.solve(1.8, x_end)
 
-        expected_x = [0, 0.5, 1.5, 1.7, 2, 3, 3.5, 4.5, 5, 5.2]
-        expected_y = BDESolver.to_logical([[1,1],[1,0],[0,0],[0,0],[0,1],[1,1],[1,0],[0,0],[0,1],[0,1]])
+        self.assertEqual([0, 1.5, 3, 4.5], output_a.t)
+        self.assertEqual([True, False, True, False], output_a.y)
+        self.assertEqual(5.2, output_a.end)
 
-        self.assertEqual(expected_x, solver.res_x)
-        self.assertEqual(expected_y, solver.res_y)
-
+        self.assertEqual([0, 0.5, 2, 3.5, 5], output_b.t)
+        self.assertEqual([True, False, True, False, True], output_b.y)
+        self.assertEqual(5.2, output_b.end)
 
     def test_history_ends_with_switch(self):
         # A switch occurs at the last point in the history but the history
@@ -102,22 +114,24 @@ class TestBDESolver(unittest.TestCase):
 
         tau1 = 1
         tau2 = 0.5
-        delays  = [tau1, tau2]
+        delays = [tau1, tau2]
 
-        x = [0,0.5,1.5,2]
-        y = [[True,True], [True,False], [False,False], [False,True]]
+        history_a = SwitchPoints([0,1.5], [True, False], 2.1)
+        history_b = SwitchPoints([0,0.5,2], [True, False, True], 2.1)
 
         x_end = 5.2
 
-        solver = BDESolver(lambda z :[ z[0][1], not z[1][0] ], delays, x, y)
-        solver.solve(2.1, x_end)
+        solver = BDESolver(lambda z :[ z[0][1], not z[1][0] ], delays, [history_a, history_b])
+        [output_a, output_b] = solver.solve(2.1, x_end)
 
-        expected_x = [0,0.5,1.5,2,3,3.5,4.5,5,5.2]
-        expected_y = [[True,True], [True,False], [False,False], [False,True], [True,True], [True,False], [False,False], [False,True], [False,True]]
+        self.assertEqual([0, 1.5, 3, 4.5], output_a.t)
+        self.assertEqual([True, False, True, False], output_a.y)
+        self.assertEqual(5.2, output_a.end)
 
-        self.assertEqual(expected_x, solver.res_x)
-        self.assertEqual(expected_y, solver.res_y)
-        
+        self.assertEqual([0, 0.5, 2, 3.5, 5], output_b.t)
+        self.assertEqual([True, False, True, False, True], output_b.y)
+        self.assertEqual(5.2, output_b.end)
+
     def test_simulation_starts_from_last_input_time(self):
         """
         Simulations are not allowed to start from the last input time.
@@ -146,21 +160,23 @@ class TestBDESolver(unittest.TestCase):
 
         tau1 = 1
         tau2 = 0.5
-        delays  = [tau1, tau2]
+        delays = [tau1, tau2]
 
-        x = [0,0.5,1.5,1.7]
-        y = [[True,True], [True,False], [False,False], [False,False]]
+        history_a = SwitchPoints([0, 1.5], [True, False], 1.8)
+        history_b = SwitchPoints([0, 0.5], [True, False], 1.8)
 
         x_end = 5
 
-        solver = BDESolver(lambda z :[ z[0][1], not z[1][0] ], delays, x, y)
-        solver.solve(1.8, x_end)
+        solver = BDESolver(lambda z :[ z[0][1], not z[1][0] ], delays, [history_a, history_b])
+        [output_a, output_b] = solver.solve(1.8, x_end)
 
-        expected_x = [0,0.5,1.5,1.7,2,3,3.5,4.5,5]
-        expected_y = [[True,True], [True,False], [False,False], [False,False], [False,True], [True,True], [True,False], [False,False], [False,True]]
+        self.assertEqual([0, 1.5, 3, 4.5], output_a.t)
+        self.assertEqual([True, False, True, False], output_a.y)
+        self.assertEqual(5, output_a.end)
 
-        self.assertEqual(expected_x, solver.res_x)
-        self.assertEqual(expected_y, solver.res_y)
+        self.assertEqual([0, 0.5, 2, 3.5, 5], output_b.t)
+        self.assertEqual([True, False, True, False, True], output_b.y)
+        self.assertEqual(5, output_b.end)
 
     def test_two_variables_switch_at_switch_points(self):
         # Two variables switch at each of the switch points.
@@ -177,7 +193,7 @@ class TestBDESolver(unittest.TestCase):
         x_end = 3.2
 
         solver = BDESolver(lambda z :[ z[0][1], z[1][0] ], delays, x, y)
-        solver.solve(1.8, x_end)
+        [output_a, output_b] = solver.solve(1.8, x_end)
 
         expected_x = [0, 0.5, 1.0, 1.5, 1.7, 2, 2.5, 3, 3.2]
         expected_y = [[True,True], [False,False], [True,True], [False,False], [False,False], [True,True], [False,False], [True,True], [True,True]]
