@@ -1,6 +1,5 @@
 from pybde import BDESolver
 from pybde import SwitchPoints
-import numpy as np
 from numpy import genfromtxt
 import matplotlib.pyplot as plt
 
@@ -26,11 +25,8 @@ plt.plot(experiment_data[:,2], experiment_data[:,1], 'b-', label="b")
 plt.legend()
 plt.title("Experiment data")
 
-# Now we wish to discretise the data.  Need a more sophisticates descretise function than
-# I'm about to build.
-
-a_switch_points = SwitchPoints.to_discrete(experiment_data[:,2], experiment_data[:,0])
-b_switch_points = SwitchPoints.to_discrete(experiment_data[:,2], experiment_data[:,1])
+a_switch_points = SwitchPoints.relative_threshold(experiment_data[:,2], experiment_data[:,0], 0.3)
+b_switch_points = SwitchPoints.relative_threshold(experiment_data[:,2], experiment_data[:,1], 0.3)
 a_switch_points.label = "a"
 b_switch_points.label = "b"
 a_switch_points.style = "r-"
@@ -38,8 +34,8 @@ b_switch_points.style = "b-"
 
 # Now we need to run a simulation...  Let's take the input up to 24 hours
 
-hist_a = a_switch_points.cut(24)
-hist_b = b_switch_points.cut(24)
+hist_a = a_switch_points.cut(0, 24)
+hist_b = b_switch_points.cut(0, 24)
 
 # Build up forced input
 
@@ -64,7 +60,7 @@ tau3 = 14.5586
 delays = [tau1, tau2, tau3]
 
 solver = BDESolver(neurospora_eqns, delays, [hist_a, hist_b], [light_switch_points])
-outputs = solver.solve(24, 118)
+outputs = solver.solve(118)
 
 # Plot the simulation
 plt.subplot(num_plots, 1, 3)
@@ -74,6 +70,10 @@ plt.xlabel("Time (hours)")
 plt.show()
 
 # Calculate hamming distance between simulation and discrete experiment data
+
+
+print("a.t = {} a.end = {}".format(a_switch_points.t, a_switch_points.end))
+print("out0.t = {} out0.end = {}".format(outputs[0].t, outputs[0].end))
 
 num_plots = 2
 print("Hamming distance of a : {}".format(a_switch_points.hamming_distance(outputs[0])))

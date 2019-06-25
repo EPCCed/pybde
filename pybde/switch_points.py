@@ -1,8 +1,74 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
+import math
 
 class SwitchPoints:
+
+    rel_tol = 1e-09
+    abs_tol = 0.0
+
+    @staticmethod
+    def times_are_equal(t1, t2):
+        """
+        Compares if two times are equal within tolerance.
+
+        Parameters
+        ----------
+
+        t1 : float
+            A time point.
+        t2 : float
+            A time point.
+
+        Returns
+        -------
+
+        bool
+            True if the two times are equal, False otherwise.
+        """
+        return math.isclose(t1, t2, rel_tol=SwitchPoints.rel_tol, abs_tol=SwitchPoints.abs_tol)
+
+    @staticmethod
+    def is_time_before(t1, t2):
+        """
+        Tests if the given time is before or equal to the simulation end time.
+
+        Parameters
+        ---------
+
+        t : float
+            A time point.
+
+        Returns
+        -------
+
+        bool
+            True if the time is before or equal to the end point.
+
+        """
+        if t1 < t2 and not SwitchPoints.times_are_equal(t1, t2):
+            return True
+
+    @staticmethod
+    def is_time_before_or_equal(t1, t2):
+        """
+        Tests if the given time is before or equal to the simulation end time.
+
+        Parameters
+        ---------
+
+        t : float
+            A time point.
+
+        Returns
+        -------
+
+        bool
+            True if the time is before or equal to the end point.
+
+        """
+        if t1 < t2 or SwitchPoints.times_are_equal(t1, t2):
+            return True
 
     def __init__(self, t, y, end, label=None, style=None):
         self.t = t
@@ -15,21 +81,47 @@ class SwitchPoints:
         while len(y) < len(t):
             y.append(not y[-1])
 
-        # TODO: flag error if y is longer than t
+        if len(y) > len(t):
+            raise ValueError("Cannot specify more value elements (y) that time elements (t).")
 
-        # TODO: test that times are incrementing
+        for i in range(len(t)-1):
+            if t[i] >= t[i+1]:
+                raise ValueError("Time values (t) must be incrementing.")
 
-        # TODO: test that end is beyond last switch time - may need to be careful with this for results - this may just be an input issue for history data.
+        if end < t[-1]:
+            raise ValueError("End time must be equal to or greater than last switch time")
 
-
-    def cut(self, new_end):
+    def cut(self, new_start, new_end, keep_switch_on_end=False):
         res_t = []
         res_y = []
+
+        if SwitchPoints.is_time_before_or_equal(new_end, new_start):
+            raise ValueError("End cut time cannot be before start cut time")
+
+        # Error if cut out of range
+        if SwitchPoints.is_time_before(new_start, self.t[0]):
+            raise ValueError("Cannot cut from a value before the start.")
+
+        # Find the start
+        if SwitchPoints.is_time_before(self.end, new_end):
+            raise ValueError("Cannot cut to a value after the end.")
+
         for i, tt in enumerate(self.t):
-            if tt <= new_end:     # TODO - do a proper comparison
-                # TODO - probably do not want a switch point on the end of an input so cut probably ignores that
-                res_t.append(tt)
-                res_y.append(self.y[i])
+            if SwitchPoints.is_time_before_or_equal(new_start, tt):
+                if SwitchPoints.is_time_before(tt, new_end) or \
+                        (keep_switch_on_end and SwitchPoints.times_are_equal(tt, new_end)):
+                    if len(res_t) == 0 and not SwitchPoints.times_are_equal(new_start, tt):
+                        res_t.append(new_start)
+                        res_y.append(last_state_before_start)
+                    res_t.append(tt)
+                    res_y.append(self.y[i])
+            else:
+                last_state_before_start = self.y[i]
+
+        # If we have no switch points then add a single state at the start
+        if len(res_t) == 0:
+            res_t.append(new_start)
+            res_y.append(last_state_before_start)
 
         return SwitchPoints(res_t, res_y, new_end, label=self.label, style=self.style)
 
@@ -85,22 +177,60 @@ class SwitchPoints:
         return res_t, res_y
 
     @staticmethod
-    def plot_many(list_of_switch_points):
+    def plot_many(list_of_switch_points, offset=0.05):
         for i, switch_points in enumerate(list_of_switch_points):
-            switch_points.plot(offset=0.05*i)  # todo better handle the offset decision
+            switch_points.plot(offset=offset*i)
         plt.yticks([0, 1])
         plt.grid(True)
         plt.tight_layout()
 
     @staticmethod
-    def show_many(list_of_switch_points):
-        SwitchPoints.plot_many(list_of_switch_points)
+    def show_many(list_of_switch_points, offset=0.05):
+        SwitchPoints.plot_many(list_of_switch_points, offset=offset)
         plt.show()
 
     @staticmethod
-    def to_logical(t, y, end):
-        new_y = (np.array(y) > 0).tolist()
-        return SwitchPoints(t, new_y, end)
+    def absolute_threshold(t, y, threshold):
+        t = np.array(t)
+        y = np.array(y)
+        res_x = [t[0]]
+
+        # If start on the threshold then look ahead to see the first state value
+        initial_state = False  # Default state if all data is on the threshold plateau
+        prev = 0
+        for i, yy in enumerate(y):
+            if y[i] != threshold:
+                initial_state = y[i] > threshold
+                prev = i
+                break
+
+        print("t = {} y = {}".format(t,y))
+        for i in range(1, len(t)):
+            v = (y[prev] - threshold) * (y[i] - threshold)
+            print("i = {} prev = {} v = {}".format(i, prev, v))
+            if v < 0:
+                # We have a threshold crossing - interpolate where it crosses
+                if prev == i-1:
+                    m = (y[i]-y[prev])/(t[i]-t[prev])
+                    c = y[i] - m * t[i]
+                    intercept = (threshold-c)/m
+                    res_x.append(intercept)
+                else:
+                    # We're exiting a plateau
+                    res_x.append((t[i] - t[prev])/2)
+                prev = i
+            elif v > 0:
+                prev = i
+
+        return SwitchPoints(res_x, [initial_state], t[-1])
+
+    @staticmethod
+    def relative_threshold(t, y, threshold):
+        t = np.array(t)
+        y = np.array(y)
+        mn = y.min(axis=0)
+        mx = y.max(axis=0)
+        return SwitchPoints.absolute_threshold(t, y, mn + threshold * (mx-mn) )
 
     @staticmethod
     def to_discrete(t, y):
@@ -180,6 +310,9 @@ class SwitchPoints:
         return result
 
     def hamming_distance(self, other):
+
+        if self.end != other.end or self.t[0] != other.t[0]:
+            raise ValueError("Can only calculate Hamming distance over identical ranges.")
         distance = 0.0
 
         times, states = SwitchPoints.merge([self, other])
