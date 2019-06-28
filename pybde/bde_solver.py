@@ -3,9 +3,9 @@ import sys
 import math
 import logging
 import heapq
-import numpy as np
 import matplotlib.pyplot as plt
-from pybde.switch_points import SwitchPoints
+from pybde.boolean_time_series import BooleanTimeSeries
+
 
 class IndexType(IntEnum):
     """
@@ -224,7 +224,7 @@ class CandidateSwitchFinder:
 
 class BDESolver:
     """
-    Binary Delay Equation solver.
+    Boolean Delay Equation solver.
 
     Parameters
     ----------
@@ -237,21 +237,16 @@ class BDESolver:
 
     delays : list of float
         Values of the time delays.
-    x : list of float
-        Candidate switch points of the input variable state.
-    y : list of lists of float
-        Variables states for each of the input switch points.  One sublist for each switch point.
-    forced_x : list of float
-        Candidate switch point of the forced input states.  Optional.  Default value is None.
-    forced_y: list of lists of float
-        Forced input states for each of the forced input switch points.  One sublist for each
-        switch point.
+    history: list of BooleanTimeSeries
+        History time series for each variable.
+    forcing_inputs: list of BooleanTimeSeries
+        Time series for each forcing input. Default value is None.
     rel_tol : float
         Relative tolerance used when comparing times. Default is 1e-08
     abs_tol : float
         Absolute tolerance used when comparing times. Default is 0.0
     """
-    def __init__(self, func, delays, inputs, forced_inputs=None,
+    def __init__(self, func, delays, history, forcing_inputs=None,
                  rel_tol=1e-09, abs_tol=0.0):
 
         self.logger = logging.getLogger(__name__)
@@ -261,46 +256,47 @@ class BDESolver:
 
         self.func = func
         self.delays = delays
-        self.x, self.y = SwitchPoints.merge(inputs)
-        self.inputs = inputs
+        self.t, self.y = BooleanTimeSeries.merge(history)
+        self.history = history
+        self.results = None
 
         # Validate history switch points
-        for data in inputs:
+        for data in history:
             if data.t[0] != 0:
                 raise ValueError("All history data must start at t=0")
 
-        # All inputs must end at the same time, this will be the simulation start time
-        self.start_x = inputs[0].end
-        for inp in inputs:
-            if inp.end != self.start_x :
+        # All histories must end at the same time, this will be the simulation start time
+        self.start_t = history[0].end
+        for inp in history:
+            if inp.end != self.start_t:
                 raise ValueError("All history data must end at same time.")
 
         # Validate forced inputs
-        if forced_inputs:
-            for data in forced_inputs:
+        if forcing_inputs:
+            for data in forcing_inputs:
                 if data.t[0] != 0:
                     raise ValueError("All forced input data must start at t=0")
 
-        self.forced_x = None
+        self.forced_inputs = forcing_inputs
+        self.forced_t = None
         self.forced_y = None
-        self.have_forced_inputs = (forced_inputs is not None)
+        self.have_forced_inputs = (forcing_inputs is not None)
         if self.have_forced_inputs:
-            self.forced_x, self.forced_y = SwitchPoints.merge(forced_inputs)
+            self.forced_t, self.forced_y = BooleanTimeSeries.merge(forcing_inputs)
 
-        self.res_x = None
+        self.res_t = None
         self.res_y = None
-        self.end_x = None
+        self.end_t = None
 
         # Validate delays are all positive
         for d in delays:
             if d < 0:
                 raise ValueError("All delays time must be positive")
 
-        if self.start_x < max(self.delays):
+        if self.start_t < max(self.delays):
             raise ValueError(
                 "History must extend greater than or equal to the maximum delay ({}).".format(
                     max(self.delays)))
-
 
     def solve(self, end):
         """
@@ -309,30 +305,28 @@ class BDESolver:
         Parameters
         ----------
 
-        start : float
-            Start time.
         end : float
             End time.
 
         Returns
         -------
 
-        list of float, list of lists of bool
-            The list of switch point times and the list of lists of the variable states at each of
-            these switch points.
+        list of BooleanTimeSeries
+            A list containing a BooleanTimeSeries for each simulated variable.
         """
 
-        if self.start_x >= end:
-            raise ValueError("end time ({}) must be greater than simulation start time({})".format(end, self.start_x))
+        if self.start_t >= end:
+            raise ValueError("end time ({}) must be greater than simulation start time({})".format(
+                end, self.start_t))
 
-        self.end_x = end
+        self.end_t = end
 
         # Result arrays - we start with the given history
-        self.res_x = self.x.copy()
+        self.res_t = self.t.copy()
         self.res_y = self.y.copy()
 
         candidate_switch_finder = CandidateSwitchFinder(
-            self.delays, self.x, self.start_x, self.end_x, self.forced_x,
+            self.delays, self.t, self.start_t, self.end_t, self.forced_t,
             rel_tol=self.rel_tol, abs_tol=self.abs_tol)
 
         t = candidate_switch_finder.get_next_time()
@@ -359,23 +353,23 @@ class BDESolver:
             self.logger.debug("New state at t=%f is %s", t, new_state)
 
             # Keep this state if it has changed or this is the end of the simulation
-            if new_state != self.res_y[-1] or t == self.end_x:
+            if new_state != self.res_y[-1] or t == self.end_t:
                 self.logger.debug("State has changed so adding new state: %s", new_state)
-                self.res_x.append(t)
+                self.res_t.append(t)
                 self.res_y.append(new_state)
-                candidate_switch_finder.add_new_times(t, len(self.res_x)-1)
+                candidate_switch_finder.add_new_times(t, len(self.res_t) - 1)
             else:
                 self.logger.debug("State has not changed")
 
             t = candidate_switch_finder.get_next_time()
 
         # Copy over labels and styles
-        results = SwitchPoints.unmerge(self.res_x, self.res_y, self.end_x)
-        for i, result in enumerate(results):
-            result.label = self.inputs[i].label
-            result.style = self.inputs[i].style
+        self.results = BooleanTimeSeries.unmerge(self.res_t, self.res_y, self.end_t)
+        for i, result in enumerate(self.results):
+            result.label = self.history[i].label
+            result.style = self.history[i].style
 
-        return results
+        return self.results
 
     def print_result(self, file=sys.stdout):
         """
@@ -388,217 +382,43 @@ class BDESolver:
             The file to write to.  Optional.  The default value is sys.stdout.
         """
 
-        for i in range(len(self.res_x)-1):
+        for i in range(len(self.res_t) - 1):
             print("{:8.2f} -> {:8.2f} : {}".format(
-                self.res_x[i], self.res_x[i+1],
-                BDESolver.boolean_list_to_string(self.res_y[i]), file=file))
-        if self.res_x[-2] != self.res_x[-1]:
+                self.res_t[i], self.res_t[i + 1],
+                BDESolver._boolean_list_to_string(self.res_y[i]), file=file))
+        if self.res_t[-2] != self.res_t[-1]:
             print("{:8.2f} -> {:8.2f} : {}".format(
-                self.res_x[-1],
-                self.res_x[-1],
-                BDESolver.boolean_list_to_string(self.res_y[-1]),
+                self.res_t[-1],
+                self.res_t[-1],
+                BDESolver._boolean_list_to_string(self.res_y[-1]),
                 file=file))
 
-    def plot_result(self, variable_names=None, forcing_variable_names=None):
+    def plot_result(self):
         """
         Plots the simulation result to matplotlib.
-
-        Parameters
-        -----------
-
-        variable_names : list of string
-            Names of the variables. Used to label the plots.  Optional.
-        forcing_variable_names : list of string
-            Names of the forced inputs . Used to label the plots.  Optional.
         """
-        x_data, all_y_data = BDESolver.to_plots(self.res_x, self.res_y)
 
-        if self.have_forced_inputs:
-            forced_x_data, all_forced_y_data = \
-                BDESolver.to_plots(self.forced_x, self.forced_y, end_time=self.end_x)
-            num_forced_plots = len(all_forced_y_data)
-            num_plots = len(all_y_data) + num_forced_plots
+        to_plot = self.results
+        if self.forced_inputs:
+            to_plot += self.forced_inputs
 
-            num_plot = 1
-
-            for y_data in all_forced_y_data:
-                plt.subplot(num_plots, 1, num_plot)
-                plt.plot(forced_x_data, y_data)
-                if forcing_variable_names and num_plot <= len(forcing_variable_names):
-                    plt.title(forcing_variable_names[num_plot - 1])
-                plt.yticks([0, 1])
-                plt.grid(True)
-                num_plot += 1
-
-        else:
-            num_plots = len(all_y_data)
-            num_forced_plots = 0
-            num_plot = 1
-
-        for y_data in all_y_data:
-            plt.subplot(num_plots, 1, num_plot)
-            plt.plot(x_data, y_data)
-            if variable_names and num_plot - num_forced_plots <= len(variable_names):
-                plt.title(variable_names[num_plot - num_forced_plots - 1])
-            if num_plot == num_plots:
-                plt.xlabel('time')
-            plt.yticks([0, 1])
-            plt.grid(True)
-
-            num_plot += 1
-
-            plt.tight_layout()
-
-    def plot_result_single_graph(self, variable_names=None, forcing_variable_names=None):
-        """
-        Plots the simulation result to matplotlib.
-
-        Parameters
-        -----------
-
-        variable_names : list of string
-            Names of the variables. Used to label the plots.  Optional.
-        forcing_variable_names : list of string
-            Names of the forced inputs . Used to label the plots.  Optional.
-        """
-        x_data, all_y_data = BDESolver.to_plots(self.res_x, self.res_y)
-
-        if self.have_forced_inputs:
-            forced_x_data, all_forced_y_data = \
-                BDESolver.to_plots(self.forced_x, self.forced_y, end_time=self.end_x)
-            num_forced_plots = len(all_forced_y_data)
-            num_plots = len(all_y_data) + num_forced_plots
-
-            num_plot = 1
-
-            for y_data in all_forced_y_data:
-                plt.subplot(num_plots, 1, num_plot)
-                plt.plot(forced_x_data, y_data)
-                if forcing_variable_names and num_plot <= len(forcing_variable_names):
-                    plt.title(forcing_variable_names[num_plot - 1])
-                plt.yticks([0, 1])
-                plt.grid(True)
-                num_plot += 1
-
-        else:
-            num_plots = len(all_y_data)
-            num_forced_plots = 0
-            num_plot = 1
-
-        for y_data in all_y_data:
-            plt.subplot(num_plots, 1, num_plot)
-            plt.plot(x_data, y_data)
-            if variable_names and num_plot - num_forced_plots <= len(variable_names):
-                plt.title(variable_names[num_plot - num_forced_plots - 1])
-            if num_plot == num_plots:
-                plt.xlabel('time')
-            plt.yticks([0, 1])
-            plt.grid(True)
-
-            num_plot += 1
-
-            plt.tight_layout()
-
-    def show_result(self, variable_names=None, forcing_variable_names=None):
-        """
-        Plots the simulation result to matplotlib and shows it.
-
-        Parameters
-        -----------
-
-        variable_names : list of string
-            Names of the variables. Used to label the plots.  Optional.
-        forcing_variable_names : list of string
-            Names of the forced inputs . Used to label the plots.  Optional.
-        """
-        self.plot_result(
-            variable_names=variable_names, forcing_variable_names=forcing_variable_names)
-        plt.show()
-
-    def plot_inputs(self, start, end, variable_names=None, forcing_variable_names=None):
-        """
-        Plots the simulation inputs to matplotlib.
-
-        Parameters
-        ----------
-
-        start : float
-            Simulation start time.
-        end : float
-            Simulation end time.
-        variable_names : list of string
-            Names of the variables. Used to label the plots.  Optional.
-        forcing_variable_names : list of string
-            Names of the forced inputs . Used to label the plots.  Optional.
-        """
-        x_data, all_y_data = BDESolver.to_plots(self.x, self.y, end_time=start)
-
-        xlim = None # limit of x axis
-        if self.have_forced_inputs:
-            forced_x_data, all_forced_y_data = \
-                BDESolver.to_plots(self.forced_x, self.forced_y, end_time=end)
-
-            num_forced_plots = len(all_forced_y_data)
-            num_plots = len(all_y_data) + num_forced_plots
-
-            num_plot = 1
-
-            for y_data in all_forced_y_data:
-                plt.subplot(num_plots, 1, num_plot)
-                plt.plot(forced_x_data, y_data)
-                if forcing_variable_names and num_plot <= len(forcing_variable_names):
-                    plt.title(forcing_variable_names[num_plot - 1])
-                plt.yticks([0, 1])
-                plt.grid(True)
-                num_plot += 1
-                xlim = plt.xlim()
-
-        else:
-            num_plots = len(all_y_data)
-            num_forced_plots = 0
-            num_plot = 1
-
-        for y_data in all_y_data:
-            plt.subplot(num_plots, 1, num_plot)
-            plt.plot(x_data, y_data)
-            if variable_names and num_plot - num_forced_plots <= len(variable_names):
-                plt.title(variable_names[num_plot - num_forced_plots - 1])
-            if num_plot == num_plots:
-                plt.xlabel('time')
-            plt.yticks([0, 1])
-            plt.grid(True)
-
-            if self.have_forced_inputs:
-                # Extend plot to the end of the simulations
-                plt.xlim(xlim)
-
-            num_plot += 1
-
+        BooleanTimeSeries.plot_many(to_plot)
+        plt.legend()
+        plt.xlabel("time")
         plt.tight_layout()
 
-    def show_inputs(self, start, end, variable_names=None, forcing_variable_names=None):
-        """
-        Plots the simulation inputs to matplotlib and shows it.
+    def show_result(self):
 
-        Parameters
-        ----------
-
-        start : float
-            Simulation start time.
-        end : float
-            Simulation end time.
-        variable_names : list of string
-            Names of the variables. Used to label the plots.  Optional.
-        forcing_variable_names : list of string
-            Names of the forced inputs . Used to label the plots.  Optional.
         """
-        self.plot_inputs(start, end,
-                         variable_names=variable_names,
-                         forcing_variable_names=forcing_variable_names)
+        Plots the simulation result to matplotlib and shows it.
+        """
+
+        self.plot_result()
         plt.show()
 
+
     @staticmethod
-    def boolean_list_to_string(l):
+    def _boolean_list_to_string(l):
         """
         Converts a boolean list to a string of T and F characters.
 
@@ -621,12 +441,3 @@ class BDESolver:
             else:
                 res += "F "
         return res
-
-
-
-
-
-
-
-
-

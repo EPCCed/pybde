@@ -1,19 +1,19 @@
 import unittest
 from pybde import BDESolver
-from pybde import SwitchPoints
+from pybde import BooleanTimeSeries
 
 class TestBDESolver(unittest.TestCase):
 
     def test_raise_exception_if_end_before_start(self):
 
-        solver = BDESolver(lambda z : [not z[0][0]], [1], [SwitchPoints([0], [True], 2)])
+        solver = BDESolver(lambda z : [not z[0][0]], [1], [BooleanTimeSeries([0], [True], 2)])
 
         with self.assertRaises(ValueError):
             solver.solve(1.7)
 
     def test_one_variable(self):
 
-        history = SwitchPoints([0, 1], [False, True], 1.5)
+        history = BooleanTimeSeries([0, 1], [False, True], 1.5)
         solver = BDESolver(lambda z : [not z[0][0]], [1], [history])
         [output] = solver.solve(3)
 
@@ -26,7 +26,7 @@ class TestBDESolver(unittest.TestCase):
 
     def test_one_variable_one_history_switch(self):
 
-        history = SwitchPoints([0], [False], 1)
+        history = BooleanTimeSeries([0], [False], 1)
 
         solver = BDESolver(lambda z : [not z[0][0]], [1], [history])
         [output] = solver.solve(3)
@@ -40,7 +40,7 @@ class TestBDESolver(unittest.TestCase):
 
     def test_start_time_is_a_switch_but_not_candidate_from_history(self):
 
-        history = SwitchPoints([0], [False], 1.5)
+        history = BooleanTimeSeries([0], [False], 1.5)
 
         solver = BDESolver(lambda z : [not z[0][0]], [1], [history])
         [output] = solver.solve(3)
@@ -63,8 +63,8 @@ class TestBDESolver(unittest.TestCase):
         start_time = 0.5
         end_time = 3
 
-        history = SwitchPoints([0], [True], start_time)
-        input = SwitchPoints([0, 0.5, 1, 1.5, 2, 2.5, 3], [False], end_time)
+        history = BooleanTimeSeries([0], [True], start_time)
+        input = BooleanTimeSeries([0, 0.5, 1, 1.5, 2, 2.5, 3], [False], end_time)
 
         my_bde_solver = BDESolver(lambda z,z2 : [z2[0][0]], delay_parameters, [history], [input])
         [output] = my_bde_solver.solve(end_time)
@@ -86,8 +86,8 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        history_a = SwitchPoints([0, 1.5], [True, False], 1.8)
-        history_b = SwitchPoints([0, 0.5], [True, False], 1.8)
+        history_a = BooleanTimeSeries([0, 1.5], [True, False], 1.8)
+        history_b = BooleanTimeSeries([0, 0.5], [True, False], 1.8)
 
         x_end = 5.2
 
@@ -114,8 +114,8 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        history_a = SwitchPoints([0,1.5], [True, False], 2.1)
-        history_b = SwitchPoints([0,0.5,2], [True, False, True], 2.1)
+        history_a = BooleanTimeSeries([0, 1.5], [True, False], 2.1)
+        history_b = BooleanTimeSeries([0, 0.5, 2], [True, False, True], 2.1)
 
         x_end = 5.2
 
@@ -135,8 +135,8 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        history_a = SwitchPoints([0,1.5], [True, False], 2.2)
-        history_b = SwitchPoints([0,0.5,2], [True, False, True], 2.1)
+        history_a = BooleanTimeSeries([0, 1.5], [True, False], 2.2)
+        history_b = BooleanTimeSeries([0, 0.5, 2], [True, False, True], 2.1)
 
         x_end = 5.2
 
@@ -153,8 +153,8 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        history_a = SwitchPoints([0, 1.5], [True, False], 1.8)
-        history_b = SwitchPoints([0, 0.5], [True, False], 1.8)
+        history_a = BooleanTimeSeries([0, 1.5], [True, False], 1.8)
+        history_b = BooleanTimeSeries([0, 0.5], [True, False], 1.8)
 
         x_end = 5
 
@@ -179,8 +179,8 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 1;
         delays = [tau1, tau2]
 
-        history_a = SwitchPoints([0, 0.5, 1.0, 1.5], [True, False, True, False], 1.8)
-        history_b = SwitchPoints([0, 0.5, 1.0, 1.5], [True, False, True, False], 1.8)
+        history_a = BooleanTimeSeries([0, 0.5, 1.0, 1.5], [True, False, True, False], 1.8)
+        history_b = BooleanTimeSeries([0, 0.5, 1.0, 1.5], [True, False, True, False], 1.8)
 
         x_end = 3.2
 
@@ -206,10 +206,10 @@ class TestBDESolver(unittest.TestCase):
         tau1 = 0.5
         delays = [tau1]
 
-        history = SwitchPoints([0, 0.5, 1.5], [True, False, True], 1.7)
+        history = BooleanTimeSeries([0, 0.5, 1.5], [True, False, True], 1.7)
         x_end = 3
 
-        input = SwitchPoints([0, 0.5, 1.5, 2, 2.5, 3], [False, True, False, True, False, True], 3)
+        input = BooleanTimeSeries([0, 0.5, 1.5, 2, 2.5, 3], [False, True, False, True, False, True], 3)
 
         solver = BDESolver(lambda z,z2 :[ z2[0][0] ], delays, [history], [input])
         [output] = solver.solve(x_end)
@@ -235,13 +235,13 @@ class TestBDESolver(unittest.TestCase):
         #x = [0, 1]
         #y = [[True, False], [True, False]]
 
-        history_a = SwitchPoints([0],[True],1)
-        history_b = SwitchPoints([0],[False],1)
+        history_a = BooleanTimeSeries([0], [True], 1)
+        history_b = BooleanTimeSeries([0], [False], 1)
 
         x_end = 5
 
-        input = SwitchPoints([0, 0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75],
-                             [False, True, False, True, False, True, False, True, False, True, False], 5)
+        input = BooleanTimeSeries([0, 0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75],
+                                  [False, True, False, True, False, True, False, True, False, True, False], 5)
 
         solver = BDESolver(
             lambda z, z2: [z[0][1], (not z[1][0]) or z2[2][0] ],
@@ -271,13 +271,13 @@ class TestBDESolver(unittest.TestCase):
         # functionality so change it just now.
         #x = [0, 1]
         #y = [[True, False], [True, False]]
-        history_a = SwitchPoints([0], [True], 1)
-        history_b = SwitchPoints([0], [False], 1)
+        history_a = BooleanTimeSeries([0], [True], 1)
+        history_b = BooleanTimeSeries([0], [False], 1)
 
         x_end = 5
 
-        input_a = SwitchPoints([0, 0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75], [False], 5)
-        input_b = SwitchPoints([0], [True], 5)
+        input_a = BooleanTimeSeries([0, 0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75, 4.25, 4.75], [False], 5)
+        input_b = BooleanTimeSeries([0], [True], 5)
 
         solver = BDESolver(lambda z, z2: [z[0][1] and z2[3][1], (not z[1][0]) or z2[2][0] ],
                            delays, [history_a, history_b], [input_a, input_b])
@@ -303,13 +303,13 @@ class TestBDESolver(unittest.TestCase):
 
         delays = [tau1, tau2, tau3, tau4]
 
-        history_a = SwitchPoints([0], [True], 1)
-        history_b = SwitchPoints([0], [False], 1)
+        history_a = BooleanTimeSeries([0], [True], 1)
+        history_b = BooleanTimeSeries([0], [False], 1)
 
         x_end = 1.4
 
-        input_a = SwitchPoints([0, 0.25, 0.75, 1.25], [False], 1.4)
-        input_b = SwitchPoints([0, 0.1, 0.9, 1.1], [False], 1.4)
+        input_a = BooleanTimeSeries([0, 0.25, 0.75, 1.25], [False], 1.4)
+        input_b = BooleanTimeSeries([0, 0.1, 0.9, 1.1], [False], 1.4)
 
         solver = BDESolver(
             lambda z, z2: [z[0][1] or not z2[3][1], (not z[1][0]) or z2[2][0] ],
@@ -335,7 +335,7 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        history = SwitchPoints([0.2, 0.5, 1.5], [True], 1.7)
+        history = BooleanTimeSeries([0.2, 0.5, 1.5], [True], 1.7)
 
         x_end = 5
 
@@ -352,9 +352,9 @@ class TestBDESolver(unittest.TestCase):
         tau2 = 0.5
         delays = [tau1, tau2]
 
-        history = SwitchPoints([0.2, 0.5, 1.5], [True], 1.7)
+        history = BooleanTimeSeries([0.2, 0.5, 1.5], [True], 1.7)
 
-        forced_input = SwitchPoints([1],[True], 1.7)
+        forced_input = BooleanTimeSeries([1], [True], 1.7)
 
         x_end = 5
 
@@ -366,7 +366,7 @@ class TestBDESolver(unittest.TestCase):
         tau2 = -0.5
         delays = [tau1, tau2]
 
-        history = SwitchPoints([0, 0.5, 1.5], [True], 1.7)
+        history = BooleanTimeSeries([0, 0.5, 1.5], [True], 1.7)
 
         x_end = 5
 
