@@ -3,7 +3,7 @@
 Boolean Delay Equations (BDEs) can be used to model a variety of problems.  ```pybde``` allows
 to you write Boolean delay equations models in Python and simulate them.
 
-More detailed documentation can be found at: Documentation for pynmmso can be found at: https://github.com/EPCCed/pybde/wiki/pybde
+More detailed documentation can be found at: https://github.com/EPCCed/pybde/wiki/pybde
 
 Code for the examples included here can be found at: https://github.com/EPCCed/pybde-examples
 
