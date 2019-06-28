@@ -3,6 +3,10 @@
 Boolean Delay Equations (BDEs) can be used to model a variety of problems.  ```pybde``` allows
 to you write Boolean delay equations models in Python and simulate them.
 
+More detailed documentation can be found at: Documentation for pynmmso can be found at: https://github.com/EPCCed/pybde/wiki/pybde
+
+Code for the examples included here can be found at: https://github.com/EPCCed/pybde-examples
+
 ## Install pybde
 
 ```pybde``` requires Python 3.5 or above.  
@@ -35,17 +39,20 @@ def my_model(z):
 ```
 
 To simulate this model we must provide:
-* the state of the variables at time t=0 and at any other switch points before the start of the simulation,
-* the time delays,
-* the start time for the simulation, and
+* the history of the state variables prior to the start of the simulation,
+* the time delays, and
 * the end time for the simulation.
 
-Our model has only one variable and we will specify its value only at t=0 so the input states and input
-times will be:
+Our model has only one variable and we will specify its history from t=0 until t=1.  We 
+define this as a Boolean time series specifying:
+* a list of time points where the state changes, 
+* a corresponding list of the new variable state at each of these time points, and
+* the final time point for the time series.
+
+The code to do this is:
 
 ```
-input_states = [ [True] ]
-input_times = [ 0 ]
+history = BooleanTimeSeries([0], [True], 1)
 ```
 
 We only have a single delay parameter in this model and its value is 1 so the delay_parameters list is:
@@ -53,42 +60,42 @@ We only have a single delay parameter in this model and its value is 1 so the de
 delay_parameters = [ 1 ]
 ```
 
-The start time of our simulation will be t=1 and the end time will be t=5:
+Our simulation will run from the end of the defined history (t=1) and will end at time t=5:
 ```
-start_time = 1
 end_time = 5
 ```
 
-Note that the start time must be greater than or equal to the maximum delay parameter.
+Note that the history must last at least a long as the maximum delay parameter.  In this case both are 1 seconds
+so this is valid.
 
 Putting this altogether gives:
 
 ```
-from pybde import BDESolver
+from pybde import BDESolver, BooleanTimeSeries
+
 
 def my_model(z):
-    return [ not z[0][0] ]
+    return [not z[0][0]]
+
 
 def main():
-    input_states = [ [True] ]
-    input_times = [ 0 ]
-    delay_parameters = [ 1 ]
-    start_time = 1
+    history = BooleanTimeSeries([0], [True], 1)
+    delay_parameters = [1]
     end_time = 5
 
-    my_bde_solver = BDESolver(my_model, input_times, input_states, delay_parameters)
-    my_bde_solver.solve(start_time, end_time)
+    my_bde_solver = BDESolver(my_model, delay_parameters, [history])
+    my_bde_solver.solve(end_time)
     my_bde_solver.show_result()
+
 
 if __name__ == "__main__":
     main()
-
 ```
 
 This will display the following plot showing the state of the variable
 over the duration of the simulation.
 
-![One variable one delay output](https://github.com/EPCCed/pybde/wiki/images/one_variable_one_delay_output.png)
+![One variable one delay output](https://github.com/EPCCed/pybde/wiki/images/v1.0/single_variable_output.png)
 
 ## Multiple variables and delays
 
@@ -116,21 +123,32 @@ def my_two_variable_model(z):
     return [z[tau1][x2], not z[tau2][x1]]
 ```
 
-We wish to start the simulation at t=2 with input states until this point as shown below:
+We wish to start the simulation at t=2 with input history until this point as shown below:
 
-![Two variables input plot](https://github.com/EPCCed/pybde/wiki/images/two_variables_input.png)
+![Two variables, two delays history](https://github.com/EPCCed/pybde/wiki/images/v1.0/two_variables_history.png)
 
-So we specify the input times and states as:
+So we specify the history of variables x1 and x2 as:
 
 ```
-input_times = [0, 1, 1.5]
-input_states = [ [True, True], [True, False], [False, False] ]
+x1_history = BooleanTimeSeries([0, 1.5], [True, False], 2)
+x2_history = BooleanTimeSeries([0, 1], [True, False], 2)
+```
+
+To distinguish the variables when plotting results we can give them
+labels and matlplotlib plotting styles:
+
+```
+x1_history.label = "x1"
+x1_history.style = "-r"
+x2_history.label = "x2"
+x2_history.style = "-b"
 ```
 
 So the full simulation is run with the following code:
 
 ```
-from pybde import BDESolver
+from pybde import BDESolver, BooleanTimeSeries
+
 
 def my_two_variable_model(z):
     x1 = 0
@@ -139,29 +157,34 @@ def my_two_variable_model(z):
     tau2 = 1
     return [z[tau1][x2], not z[tau2][x1]]
 
+
 def main():
-    input_times = [0, 1, 1.5]
-    input_states = [ [True, True], [True, False], [False, False] ]
-    delay_parameters = [ 1, 0.5 ]
-    start_time = 2
+    x1_history = BooleanTimeSeries([0, 1.5], [True, False], 2)
+    x2_history = BooleanTimeSeries([0, 1], [True, False], 2)
+
+    x1_history.label = "x1"
+    x1_history.style = "-r"
+    x2_history.label = "x2"
+    x2_history.style = "-b"
+
+    delay_parameters = [1, 0.5]
+
     end_time = 6
 
-    my_bde_solver = BDESolver(my_two_variable_model, delay_parameters,  
-                              input_times, input_states)
-    my_bde_solver.solve(start_time, end_time)
-    my_bde_solver.show_result(variable_names=['x1','x2'])
+    my_bde_solver = BDESolver(my_two_variable_model, delay_parameters,[x1_history, x2_history])
+    my_bde_solver.solve(end_time)
+    my_bde_solver.show_result()
+
 
 if __name__ == "__main__":
     main()
-
 ```
 
 This will display the following plot showing the state of the variables
-over the duration of the simulation.  Note how the optional argument
-`variable_names` has been passed to the `show_plot` function to specify
-the labels for the variables.
+over the duration of the simulation.
 
-![Two variables output plot](https://github.com/EPCCed/pybde/wiki/images/two_variables_output.png)
+![Two variables, two delays output](https://github.com/EPCCed/pybde/wiki/images/v1.0/two_variables_output.png)
+
 
 ## Forcing inputs
 
@@ -185,23 +208,31 @@ starting state and switch points for the whole simulation.
 For a three second simulation this can be defined as:
 
 ```
-forcing_times = [ 0, 0.5, 1, 1.5, 2, 2.5, 3 ]
-forcing_states = [[False], [True], [False], [True], [False], [True], [False]
+x1_input = BooleanTimeSeries([0, 0.5, 1, 1.5, 2, 2.5, 3], [False], 3)
 ```
+
+Note that in the code above we only specify the initial Boolean state rather than
+all seven Boolean states.  If the length of the state list is smaller than the length
+of the timepoint list then the state list is simply extended with alternative True
+and False values.  The above code is identical to:
+
+```
+x1_input = BooleanTimeSeries([0, 0.5, 1, 1.5, 2, 2.5, 3], [False, True, False, True, False, True, False], 3)
+```
+
 
 Given that x1 is a forcing variable the only normal variable will be
-x2.  The following code initialised it to `True`:
+x2.  The following code initialises it to `True` for 0.5 time units:
 
 ```
-input_times = [0]
-input_states = [ [True] ]
+x2_history = BooleanTimeSeries([0], [True], 0.5)
 ```
 
 The inputs to the simulation are shown in the following plot:
 
-![inputs plot](https://github.com/EPCCed/pybde/wiki/images/inputs_plot.png)
+![Forcing input before simulation](https://github.com/EPCCed/pybde/wiki/images/v1.0/forcing_input_before.png)
 
-When using forcing inputs the state of forcing inputs are the various
+When using forcing inputs the state of forcing inputs at the various
 time delays is passed to the model function as a second 
 argument.  The model function is therefore:
 
@@ -216,79 +247,87 @@ To run the simulation is very similar to before except the forcing inputs
 must be passed when constructing the ```BDESolver``` object:
 
 ```
-my_bde_solver = BDESolver(my_forced_input_model, delay_parameters,  
-                          input_times, input_states, 
-                          forcing_times, forcing_states)
+my_bde_solver = BDESolver(my_forcing_input_model, 
+                          delay_parameters, 
+                          [x2_history], 
+                          [x1_input])
 ```
 
 The whole code is:
 
 ```
-from pybde import BDESolver
+from pybde import BDESolver, BooleanTimeSeries
 
-def my_forced_input_model(z, forced_inputs):
+
+def my_forcing_input_model(z, forcing_inputs):
     tau = 0
     x1 = 0
-    return [ forced_inputs[tau][x1] ]
+    return [ forcing_inputs[tau][x1] ]
+
 
 def main():
-    input_times = [0]
-    input_states = [[True]]
-    delay_parameters = [ 0.3 ]
-    start_time = 0.5
+    x2_history = BooleanTimeSeries([0], [True], 0.5)
+    x2_history.label = 'x2'
+    x2_history.style = '-r'
+
+    x1_input = BooleanTimeSeries([0, 0.5, 1, 1.5, 2, 2.5, 3], [False], 3)
+    x1_input.label = 'x1'
+    x1_input.style = '-b'
+
+    delay_parameters = [0.3]
     end_time = 3
 
-    forcing_times = [0, 0.5, 1, 1.5, 2, 2.5, 3]
-    forcing_states = [[False], [True], [False], [True], [False], [True], [False]]
+    my_bde_solver = BDESolver(my_forcing_input_model, 
+                              delay_parameters, 
+                              [x2_history], 
+                              [x1_input])
+    my_bde_solver.solve(end_time)
 
-    my_bde_solver = BDESolver(my_forced_input_model, delay_parameters,
-                              input_times, input_states,
-                              forcing_times, forcing_states)
-    my_bde_solver.solve(start_time, end_time)
+    my_bde_solver.show_result()
 
-    my_bde_solver.show_result(variable_names=['x2'], forcing_variable_names=['x1'])
 
 if __name__ == "__main__":
     main()
 ```
 
 
-Running this simulation produces the following plots:
+Running this simulation produces the following plot:
 
-![Forcing inputs output plot](https://github.com/EPCCed/pybde/wiki/images/forcing_inputs_output.png)
+![Forcing input after simulation](https://github.com/EPCCed/pybde/wiki/images/v1.0/forcing_input_after.png)
 
+## Plotting and printing result data
 
-## Obtaining the result data
+The `BDESolver` class provides basic methods to plot or print results. These
+can be useful to quickly see the result of a simulation. For more detailed
+analysis of the results see the `BooleanTimeSeries` convenience functions
+below.
 
-The `solve` method of `BDESolver` returns two lists which contain the switch points 
-and variable states.  The fist list contains the times of all switch points (including
-the input switch points and also the final time of the simulation).  The second list
-contains lists of variable states for each switch time point.
+### `plot_result()`
 
-For example, for the two variables and two delays example show above we can obtain
-and print the results with code such as:
-
-```
-result_t, result_y = my_bde_solver.solve(start_time, end_time)
-
-print("result_t: {}".format(result_t))
-print("result_y = {}".format(result_y))
-```
-
-This would output:
+`plot_result` plots the variable state and any forcing inputs to a single
+plot. Line styles and labels are taken from the `BooleanTimeSeries` objects 
+passed to the solver. The plot will not be displayed.  Use `matplotlib` functions
+to display or save the plot.  For example:
 
 ```
-result_t: [0, 1, 1.5, 2, 3, 3.5, 4.5, 5.0, 6.0]
-result_y = [[True, True], [True, False], [False, False], [False, True], [True, True], [True, False], [False, False], [False, True], [True, True]]
+import matplotlib.pyplot as plt
+
+...
+
+plt.figure(figsize=(5, 2))
+my_bde_solver.plot_result()
+plt.savefig("result_plot.png")
 ```
 
-Which corresponds to the following plot:
+### `show_result()`
 
-![Two variables output plot](https://github.com/EPCCed/pybde/wiki/images/two_variables_output.png)
+`show_result` is similar to `plot_result` except the `show()` function is called
+to display the plot.
 
-Another way to print out the result is to use the `print_result` method which will print the
-result over multiple lines in a format that may be easier to read.  The following code
-does this:
+### `print_result(file=sys.stdout)`
+
+`print_result` prints the state of the variables at each switch point producing
+output such as:
 
 ```
     0.00 ->     1.00 : T T 
@@ -302,127 +341,322 @@ does this:
     6.00 ->     6.00 : T T 
 ```
 
-and produces output like:
+By default the method prints to standard output but alternative outputs can be
+specified using the `file` argument.
+
+
+## Obtaining the result data
+
+The `solve` method of `BDESolver` returns a list containing a `BooleanTimeSeries`
+object for each of the variables.
+
+You can obtain and process the results with code such as:
 
 ```
-my_bde_solver.solve(start_time, end_time)
-my_bde_solver.print_result()
+result = my_bde_solver.solve(end_time)
+for bts in result:
+    print(bts)
 ```
 
-## Plotting results
-
-As show in the above examples the result of a simulation can be plotted using
-[`matplotlib`](https://matplotlib.org/) by calling `BSESolver`'s `show_result`
-method.
-
-### Plotting the inputs
-
-To show a plot of only the inputs to a simulation so they can be visually
-verified before running the simulation call the `show_inputs` method of
-the `BDESolver` class:
+Or you can explicitly obtain the time series for each variable using code such as:
 
 ```
-from pybde import BDESolver
-
-def my_forced_input_model(z, forced_inputs):
-    tau = 0
-    x1 = 0
-    return [ forced_inputs[tau][x1] ]
-
-def main():
-    input_times = [0]
-    input_states = [[True]]
-    delay_parameters = [ 0.3 ]
-    start_time = 0.5
-    end_time = 3
-
-    forcing_times = [0, 0.5, 1, 1.5, 2, 2.5, 3]
-    forcing_states = [[False], [True], [False], [True], [False], [True], [False]]
-
-    my_bde_solver = BDESolver(my_forced_input_model, delay_parameters,
-                              input_times, input_states,
-                              forcing_times, forcing_states)
-
-    my_bde_solver.show_inputs()
-
-if __name__ == "__main__":
-    main()
+[x1_result, x2_result] = my_bde_solver.solve(end_time)
 ```
 
-### Saving plots to file
 
-To construct not show the `matplotlib` object you can use the `plot_result` method. This would
-allow you to save the plot to file, for example:
+
+## `BooleanTimeSeries` convenience functions
+
+The `BooleanTimeSeries` class includes various convenience functions that help
+processing and manipulating Boolean time series data.  These are documented
+here.
+
+### BooleanTimeSeries(list_of_switch_point_times, list_of_variable_state, end_time, label=None, style=None)
+
+The `BooleanTimeSeries` constructor takes a list of switch point times,
+a list of the new variable state at each of these times and the end_time of the
+time series. These values are represent the state of the Boolean time series.
+
+The `list_of_switch_point_times` parameter may be a list of numeric values or
+a numpy array of numeric values.
+
+The `list_of_variable_state` may be a list of `bool` values or a numpy array
+of `bool` values. To save specifying a list of alternating `True` and `False`
+values it is possible to specify a list with just the first state value and
+this will automatically be padded out with alternating Boolean values for
+each specified switch point.
+
+The optional `label` parameter specifies a label to use when plotting the data.
+The value also be accessed and set using the class's `label` attribute.
+
+The optional `style` parameter specifies a style to use when plotting the data.
+The value also be accessed and set using the class's `style` attribute.
+
+
+### plot(offset=0, scale=1)
+
+Plots the Boolean time series to a `matplotlib` plot. If present the plot
+label and line style are taken from the `label` and `style` attributes of this
+`BooleanTimeSeries` instance.
+
+The plot will not be displayed. To show or save the plot use the appropriate
+`matplotlib` functionality.
+
+The `offset` parameter can be used to specify an offset from 0 and 1 at which
+to plot the line.  This can be very useful if plotting multiple Boolean time
+series on the same plot.
+
+The `scale` parameter can be used to specify that the value to plot for `True`
+is a value other than 1.  This can be useful when plotting Boolean time series
+alongside experimental data.
+
+### show(offset=0, scale=1)
+
+`show` is similar to `plot` expect the matplotlib `show` method will be called
+to display the plot.
+
+### plot_many(list_of_time_series, offset=0.05)
+
+Static method that plots multiple Boolean time series in a single plot. The offset
+parameter is used to specify the offset between plots in the y axis.
+
+Example of usage:
 
 ```
 import matplotlib.pyplot as plt
 
 ...
 
-my_bde_solver.solve(start_time, end_time)
-my_bde_solver.plot_result()
-plt.savefig('my_fig.png')
+plt.figure(figsize=(5, 2))
+list_of_boolean_time_series = my_bde_solver.solve(end_time)
+BooleanTimeSeries.plot_many(list_of_boolean_time_series, offset=0.1)
+plt.savefig("result_plot.png")
 ```
 
 
-## Convenience functions
+### show_many(list_of_time_series, offset=0.05)
 
-`BDESolver` provides a number of convenience functions the may be useful
-to users.  These are discussed here.
+Static method that is similar to `plot_many` but calls the `matplotlib` `show`
+function to display the plot.
 
-### `to_plots`
+### to_plot_data(offset=0, scale=1)
 
-The static `to_plots` method converts switch point data into data suitable
-for plotting on graphs. It is used inside the `show_result` and `plot_result`
-methods but can also be useful to users who wish to plot results using a
-different plotting package or wish to have more control over the configuration
-of their plots.  The method takes a list of switch time points and a 
-list of lists of variable states at these time points and returns an list
-of time values to plot and list of lists with the variable states at these
-time points. Essentially, the function just replicates each value in the
-lists so as to produce the sharp edge plots required.
+The `to_plot_data` method can use used to obtain the Boolean time series in a format suitable
+for plotting as using various plotting libraries.  The method returns two
+lists: one for x (time) values and the other of y values.
 
-For example, using the two variables and two delays example:
+This method is useful if you wish to take full control over how the results
+are plotted. 
 
-```
-    my_bde_solver = BDESolver(my_two_variable_model, delay_parameters,
-                              input_times, input_states)
+The `offset` parameter can be used to specify an offset from 0 and 1 at which
+to plot the line.  This can be very useful if plotting multiple Boolean time
+series on the same plot.
 
-    result_t, result_y = my_bde_solver.solve(start_time, end_time)
+The `scale` parameter can be used to specify that the value to plot for `True`
+is a value other than 1.  This can be useful when plotting Boolean time series
+alongside experimental data.
 
-    print("result_t: {}".format(result_t))
-    print("result_y = {}".format(result_y))
-
-    t_plot_data, y_plot_data = BDESolver.to_plot(result_t, result_y)
-
-    print("t_plot_data = {}".format(t_plot_data))
-    print("y_plot_data = {}".format(y_plot_data))
-```
-
-produces
+Example of usage:
 
 ```
-result_t: [0, 1, 1.5, 2, 3, 3.5, 4.5, 5.0, 6.0]
-result_y = [[True, True], [True, False], [False, False], [False, True], [True, True], [True, False], [False, False], [False, True], [True, True]]
+from pybde import BooleanTimeSeries
 
-t_plot_data = [0, 1, 1, 1.5, 1.5, 2, 2, 3, 3, 3.5, 3.5, 4.5, 4.5, 5.0, 5.0, 6.0, 6.0]
-y_plot_data = [[True, True], [True, True], [True, False], [True, False], [False, False], [False, False], [False, True], [False, True], [True, True], [True, True], [True, False], [True, False], [False, False], [False, False], [False, True], [False, True], [True, True]]
+bts = BooleanTimeSeries([0, 2, 6, 10], [True], 12)
+
+x, y = bts.to_plot_data()
+
+print('x = {}'.format(x))
+print('y = {}'.format(y))
 ```
 
-### `to_logical`
-
-The static `to_logical` method can be used to convert a list of 1s and 0s into the
-list of `True` and `False`.  When specifying longer input sequences it is often
-more readable to use 1s and 0s. For example:
+Outputs:
 
 ```
-input_states = [ [True, True], [True, False], [False, False] ]
+x = [0, 2, 2, 6, 6, 10, 10, 12]
+y = [1, 1, 0, 0, 1, 1, 0, 0]
 ```
 
-Can be replaced with
+
+### absolute_threshold(t, y, threshold) 
+
+The static `absolute_threshold` method produces Boolean time series data from
+numerical time series data. An absolute threshold value is specified above
+which the Boolean time series will be `True` and below which the Boolean time
+series will be `False`.
+
+Input parameter `t` must be either a list of numeric values or a numpy array of
+numeric values. Input parameter `y` must be either a list of `bool` values
+or a numpy array of `bool` values.
+
+Linear interpolation is used to determine the time at which the state
+changes.
+
+For example:
 
 ```
-input_states = BDESolver.to_logical([[1, 1], [1, 0], [0, 0]]
+from pybde import BooleanTimeSeries
+
+t = [0,  1, 2, 3,  4]
+y = [0, 10, 8, 3, 12]
+
+bts = BooleanTimeSeries.absolute_threshold(t, y, 5)
+
+print(bts)
+```
+
+produces:
+
+```
+t=[0, 0.5, 2.6, 3.2222222222222223], y=[False, True, False, True], end=4
+```
+
+### relative_threshold(t, y, threshold)
+
+The static `relative_threshold` method produces Boolean time series data from
+numerical time series data. An threshold value is calculated specified above
+which the Boolean time series will be `True` and below which the Boolean time
+series will be `False`.  The absolute threshold value used is calculated
+as `(max(y)-min(y))*threshold + min(y)`.  The specified threshold parameter
+should be a number between 0 and 1.
+
+Input parameter `t` must be either a list of numeric values or a numpy array of
+numeric values. Input parameter `y` must be either a list of `bool` values
+or a numpy array of `bool` values.
+
+Linear interpolation is used to determine the time at which the state
+changes.
+
+For example:
+
+```
+from pybde import BooleanTimeSeries
+
+t = [0,  1, 2, 3,  4]
+y = [4, 10, 8, 2, 12]
+
+bts = BooleanTimeSeries.relative_threshold(t, y, 0.5)
+
+print(bts)
+```
+
+produces:
+
+```
+t=[0, 0.5, 2.1666666666666665, 3.5], y=[False, True, False, True], end=4
+```
+
+### cut(new_start, new_end, keep_switch_on_end=False)
+
+The `cut` method return a new `BooleanTimeSeries` which is a sub-series of the original
+series. The returned series will run from the specified new start time to the specified
+new end time. By default a state switch that occurs on the new end time will be omitted,
+the `keep_switch_on_end` flag can be set to `True` to keep such state switches.
+
+For example:
+
+```
+> from pybde import BooleanTimeSeries
+> bts = BooleanTimeSeries([0,1,2,3,4,5,6], [True], 7)
+> print(bts)
+t=[0, 1, 2, 3, 4, 5, 6], y=[True, False, True, False, True, False, True], end=7
+
+> print( bts.cut(0,6) )
+t=[0, 1, 2, 3, 4, 5], y=[True, False, True, False, True, False], end=6
+
+> print( bts.cut(0, 6, keep_switch_on_end=True) )
+t=[0, 1, 2, 3, 4, 5, 6], y=[True, False, True, False, True, False, True], end=6
+
+> print( bts.cut(1.5, 4.5) )
+t=[1.5, 2, 3, 4], y=[False, True, False, True], end=4.5
+```
+
+### hamming_distance(boolean_time_series)
+
+The `hamming_distance` method compares the Boolean Time Series with another 
+Boolean time series and returns the total duration for which they differ.
+Two time series that are identical will have a Hamming distance of zero.
+
+For example:
+
+```
+> from pybde import BooleanTimeSeries
+> bts = BooleanTimeSeries([0,1,2,3,4,5,6], [True], 7)
+> print(bts.hamming_distance(bts))
+0.0
+
+> bts2 = BooleanTimeSeries([0,1.5,2,3,4.3,5,6], [True], 7)
+print(bts.hamming_distance(bts2))
+0.8
+```
+
+### merge(list_of_time_series)
+
+The static `merge` method takes a list of BooleanTimeSeries objects and outputs
+two lists.  The first list is the switch point times and the second list is
+a list of lists of the state variables at these time points.
+
+For example:
+
+```
+from pybde import BooleanTimeSeries
+
+bts1 = BooleanTimeSeries([0, 1.0, 2.0], [True], 3)
+bts2 = BooleanTimeSeries([0, 1.5, 2.5], [True], 3)
+
+t, y = BooleanTimeSeries.merge([bts1, bts2])
+
+print('t = {}'.format(t))
+print('y = {}'.format(y))
+```
+
+outputs:
+
+```
+t = [0, 1.0, 1.5, 2.0, 2.5]
+y = [[True, True], [False, True], [False, False], [True, False], [True, True]]
+```
+
+### unmerge(list_of_switch_timepoints, list_of_lists_of_variable_states, end)
+
+The static function `unmerge` is the opposite of `merge`. `unmerge` takes as input 
+a list a switch point times, a list of list of variable states at these
+time points and the time series end time and returns a list of BooleanTimeSeries objects.
+
+For example:
+
+```
+from pybde import BooleanTimeSeries
+
+t = [0, 1.0, 1.5, 2.0, 2.5]
+y = [[True, True], [False, True], [False, False], [True, False], [True, True]]
+
+for bts in BooleanTimeSeries.unmerge(t, y, 3):
+    print(bts)
+```
+
+outputs
+
+```
+t=[0, 1.0, 2.0], y=[True, False, True], end=3
+t=[0, 1.5, 2.5], y=[True, False, True], end=3
+```
+
+## Do not include switch points at the end of variable's history
+
+When running a simulation the input history time series must not end on a switch point.
+This is because when the simulation starts from the time point the model equations may
+contradict the history state at this point. To avoid this simply remove the final switch
+point from the history.  This can be easily achieved using the `cut` function which
+by default removes any switch point at the end of the time series duration.  For example:
+
+```
+> hist = BooleanTimeSeries([0,1,2], [True], 2)
+> print(hist)
+t=[0, 1, 2], y=[True, False, True], end=2
+> hist = hist.cut(0,hist.end)
+> print(hist)
+t=[0, 1], y=[True, False], end=2
 ```
 
 ## Logging
@@ -445,6 +679,18 @@ defines the acceptable accuracy using the `rel_tol` and `abs_tol` arguments. To 
 non-default values for these arguments you can specify `rel_tol` and `abs_tol` arguments
 when constructing the `BDESolver` object.
 
+The `BooleanTimeSeries` class also performs some floating point comparisons and adopts
+the same approach a `BSESolver`.  To alter the default relative and absolute tolerances
+for the `BooleanTimeSeries` class set the `rel_tol` and `abs_tol` static attributes of
+the class.
+
 ## Acknowledgements
 
 This work was supported by the Engineering and Physical Sciences Research Council (grant number [EP/N018125/1](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/N018125/1))
+
+
+
+
+
+
+
