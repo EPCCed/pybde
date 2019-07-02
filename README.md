@@ -839,6 +839,84 @@ solver = BDESolver(neurospora_eqns, delays, [hist_m, hist_ft], [light_bts])
 [m_output, ft_output] = solver.solve(118)
 ```
 
+We can now plot the output of the simulation:
+
+```
+plt.title("Simulation output")
+BooleanTimeSeries.plot_many([m_output , ft_output, light_bts])
+plt.xlabel("Time (hours)")
+plt.legend()
+plt.show()
+```
+
+![Simulation result](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_7.png)
+
+Plotting these outputs over the original experiment data:
+
+```
+plt.plot(experiment_data[:,2], experiment_data[:,0], 'b-', label="m", )
+m_output.plot(scale=150)
+plt.xlabel("time (hours)")
+plt.ylabel("Expression levels (AU)")
+plt.title("m")
+plt.show()
+
+
+plt.plot(experiment_data[:,2], experiment_data[:,1], 'r-', label="ft")
+ft_output.plot(scale=300)
+plt.xlabel("time (hours)")
+plt.ylabel("Expression levels (AU)")
+plt.title("ft")
+plt.show()
+```
+
+![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_8.png)
+
+Plotting the simulated data alongside the thresholded data gives:
+
+```
+# Plot simulated data alongside thresholded data
+
+m_output.label = "m sim"
+m_output.style = 'c-'
+BooleanTimeSeries.plot_many([m_bts, m_output])
+plt.xlabel("time (hours)")
+plt.title("m")
+plt.legend()
+plt.show()
+
+ft_output.label = "ft sim"
+ft_output.style = 'c-'
+BooleanTimeSeries.plot_many([ft_bts, ft_output])
+plt.xlabel("time (hours)")
+plt.title("ft")
+plt.legend()
+plt.show()
+```
+
+We can calculate the Hamming distance which gives a measure of what duration of time two Boolean time series have differing signals. For 96 hours of simulated time the Hamming distance measures are low:
+
+```
+# Calculate Hamming distances
+
+print("Hamming of m : {:.4f}".format(m_bts.hamming_distance(m_output)))
+print("Hamming of ft : {:.4f}".format(ft_bts.hamming_distance(ft_output)))
+
+print("Hamming of m as %age of simulated time: {:.2f}%".format(
+    m_bts.hamming_distance(m_output)/0.96))
+print("Hamming of ft as %age of simulated time : {:.2f}%".format(
+    ft_bts.hamming_distance(ft_output)/0.96))
+```
+
+Which outputs:
+
+```
+Hamming of m : 9.3353
+Hamming of ft : 14.7796
+Hamming of m as %age of simulated time: 9.72%
+Hamming of ft as %age of simulated time : 15.40%
+```
+
 
 
 ## Acknowledgements
