@@ -714,7 +714,7 @@ plt.show()
 
 ![Experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_1.png)
 
-To use this data in a Boolean Delay Equation we need to convert it into Boolean data. We use the `ooleanTimeSeries` class to store Boolean time series data. We can create Boolean time series data from this experiment data by applying relative or absolute thresholding.
+To use this data in a Boolean Delay Equation we need to convert it into Boolean data. We use the `BooleanTimeSeries` class to store Boolean time series data. We can create Boolean time series data from this experiment data by applying relative or absolute thresholding.
 
 Relative thresholding thresholds the relative to the range of the values in the data. A threshold of 0.5 will correspond to a threshold value midway between the minimum and maximum value.
 
@@ -764,6 +764,8 @@ plt.show()
 
 ![Experiment data on Boolean version](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_3.png)
 
+![Experiment data on Boolean version](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_4.png)
+
 We wish to use the first 24 hours' worth of data as history for our simulation. So we can cut this data to extract the first 24 hours:
 
 ```
@@ -779,7 +781,7 @@ plt.legend()
 plt.show()
 ```
 
-![Experiment history data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_4.png)
+![Experiment history data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_5.png)
 
 The Circadian model uses light as an input so we need to prepare the light input:
 
@@ -799,7 +801,7 @@ light_bts.plot()
 plt.show()
 ```
 
-![Light data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_5.png)
+![Light data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_6.png)
 
 So the inputs to our simulation are can be plotted on one graph.
 
@@ -809,7 +811,7 @@ BooleanTimeSeries.plot_many([hist_m, hist_ft, light_bts])
 plt.show()
 ```
 
-![Light data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_6.png)
+![Light data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_7.png)
 
 Now we have to define our Boolean Delay Equation model. The model has two simulated states (ft and m) and one input state (light). The model has three delays.
 
@@ -849,7 +851,7 @@ plt.legend()
 plt.show()
 ```
 
-![Simulation result](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_7.png)
+![Simulation result](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_8.png)
 
 Plotting these outputs over the original experiment data:
 
@@ -870,7 +872,7 @@ plt.title("ft")
 plt.show()
 ```
 
-![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_8.png)
+![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_9.png)
 
 Plotting the simulated data alongside the thresholded data gives:
 
