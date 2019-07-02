@@ -120,7 +120,6 @@ class TestBooleanTimeSeries(unittest.TestCase):
         t = [0, 1, 2, 2.5, 3]
         y = [[True, True], [False, False], [True, False], [True, True], [False, False]]
 
-        print("Ouptut of unmerge = {}".format(BooleanTimeSeries.unmerge(t, y, 4)))
         [out1, out2] = BooleanTimeSeries.unmerge(t, y, 4)
 
         self.assertEqual([0, 1, 2, 3], out1.t)
@@ -253,5 +252,33 @@ class TestBooleanTimeSeries(unittest.TestCase):
         self.assertEqual([0, 1, 2], bts.t)
         self.assertEqual([False, True, False], bts.y)
         self.assertEqual(3, bts.end)
+
+    def test_get_state_at_start(self):
+        t = np.array([0, 1, 2])
+        y = np.array([False, True, False])
+        bts = BooleanTimeSeries(t, y, 3)
+
+        self.assertEqual(False, bts.get_state(0))
+
+    def test_get_state_at_end(self):
+        t = np.array([0, 1, 2])
+        y = np.array([False, True, False])
+        bts = BooleanTimeSeries(t, y, 3)
+
+        self.assertEqual(False, bts.get_state(3))
+
+    def test_get_state_on_switch_point(self):
+        t = np.array([0, 1, 2])
+        y = np.array([False, True, False])
+        bts = BooleanTimeSeries(t, y, 3)
+
+        self.assertEqual(True, bts.get_state(1))
+
+    def test_get_state_between_switch_points(self):
+        t = np.array([0, 1, 2])
+        y = np.array([False, True, False])
+        bts = BooleanTimeSeries(t, y, 3)
+
+        self.assertEqual(True, bts.get_state(1.5))
 
 

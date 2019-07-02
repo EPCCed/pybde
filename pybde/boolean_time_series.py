@@ -174,6 +174,32 @@ class BooleanTimeSeries:
 
         return self
 
+    def get_state(self, t):
+        """
+        Obtains the state at the give time.
+
+        Parameters
+        -----------
+
+        t : float
+            Time
+
+        Returns
+        -------
+
+        The state at the given time or raises a ValueError if time is outside the range.
+        """
+        if BooleanTimeSeries._is_time_before(t, self.t[0]):
+            raise ValueError("Time outside range of time series")
+
+        for i, tt in enumerate(self.t):
+            if BooleanTimeSeries._is_time_before(t, tt):
+                return self.y[i-1]
+            if BooleanTimeSeries._times_are_equal(t, tt):
+                return self.y[i]
+        if BooleanTimeSeries._is_time_before_or_equal(t, self.end):
+                return self.y[-1]
+        raise ValueError("Time outside range of time series")
 
     def hamming_distance(self, other):
         """
