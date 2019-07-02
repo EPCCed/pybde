@@ -874,6 +874,8 @@ plt.show()
 
 ![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_9.png)
 
+![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_10.png)
+
 Plotting the simulated data alongside the thresholded data gives:
 
 ```
@@ -895,6 +897,11 @@ plt.title("ft")
 plt.legend()
 plt.show()
 ```
+
+![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_11.png)
+
+![Results and experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_12.png)
+
 
 We can calculate the Hamming distance which gives a measure of what duration of time two Boolean time series have differing signals. For 96 hours of simulated time the Hamming distance measures are low:
 
