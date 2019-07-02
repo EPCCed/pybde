@@ -741,7 +741,7 @@ plt.show()
 
 ![Boolean version of experiment data](https://github.com/EPCCed/pybde/wiki/images/v1.0/neurospora_2.png)
 
-We can plot this over the original data to easier see how it matches. Note that we rescale the Boolean data purely for display purposes they approximately match the same scale as the experiment data. Remember that the Boolean data only has states True (1) and False (0).
+We can plot this over the original data to see how it matches. Note that we rescale the Boolean data purely for display purposes they approximately match the same scale as the experiment data. Remember that the Boolean data only has states True (1) and False (0).
 
 ```
 # Now plot the experiment data Boolean time series with the original data
