@@ -926,6 +926,58 @@ Hamming of m as %age of simulated time: 9.72%
 Hamming of ft as %age of simulated time : 15.40%
 ```
 
+## Using pybde with pynmmso
+
+In the above real world example the delay values were explicitly given. In practice they often be obtained
+as the results of a parameter optimisation exercise.  Here we show how to use [`pynmmso`](https://github.com/EPCCed/pynmmso/wiki/) can be used to determine the values of the delays that result in the best fit to the experiment data.  
+
+This code follows on from the above real world example.  The details of pynmmso are explained in the 
+[`pynmmso` documentation](https://github.com/EPCCed/pynmmso/wiki). It is important to know that 
+`pynmmso` seeks to maximise a fitness function and returns multiple maxima at peaks of the fitness
+landscape rather then simply the global maximum.
+
+Define our problem class that provides the fitness function and the parameter bounds:
+
+```
+class MyProblem:
+    def __init__(self, equations, history, inputs, experiment_data):
+        self.equations = equations
+        self.history = history
+        self.inputs = inputs
+        self.experiment_data = experiment_data
+        
+    def fitness(self, delays):
+        # Simulate with the given delay parameters
+        solver = BDESolver(self.equations, delays, self.history, self.inputs)
+        [m_output, ft_output] = solver.solve(118)
+        
+        # Compare the result with the Boolean version of the experiment data
+        cost = m_output.hamming_distance(self.experiment_data[0]) + ft_output.hamming_distance(self.experiment_data[1])
+        
+        # Because pynmmso looks for maxima we negate the cost so it looks for the smallest
+        # cost
+        return -cost
+        
+    def get_bounds(self):
+        # For each of the three delay values explore the range 1..20
+        return [1, 1, 1],[20,20,20]
+```
+
+Now use `pynmmso` to find the maxima:
+
+```
+number_of_fitness_evaluations = 50000
+
+nmmso = Nmmso(MyProblem(neurospora_eqns, [hist_m, hist_ft], [light_bts], [m_bts, ft_bts]))
+my_result = nmmso.run(number_of_fitness_evaluations)
+for mode_result in my_result:
+    print("Mode at {} has value {}".format(mode_result.location, mode_result.value))
+```
+
+This will produce output similar to the following although the actual values returned
+may be slightly different:
+
+TODO: PUT THE RESULT IN HERE
 
 
 ## Acknowledgements
