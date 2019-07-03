@@ -977,8 +977,24 @@ for mode_result in my_result:
 This will produce output similar to the following although the actual values returned
 may be slightly different:
 
-TODO: PUT THE RESULT IN HERE
+```
+Mode at [ 9.99999999 19.99999998 15.17078072] has value -48.860801508507805
+Mode at [19.99999996  7.27463383 15.46914558] has value -73.18395433102842
+Mode at [ 5.64100973  7.90184814 13.70187647] has value -19.722341133743335
+Mode at [19.95614228  3.5720228   1.03870254] has value -90.91490635269514
+Mode at [20.         11.40358844 16.59000251] has value -74.00207006980949
+Mode at [19.99915781 15.64418847 15.86933091] has value -75.92303065045431
+Mode at [19.99998653 19.44037368  1.07194677] has value -95.11612551719436
+Mode at [19.99999884  9.72558647  1.00212142] has value -86.6759957429595
+Mode at [20.         11.40358844 18.00923951] has value -74.00207006980948
+Mode at [19.87677477  3.40047693 18.00923951] has value -76.36160166053793
+Mode at [19.87677477  3.40047693 16.94265386] has value -75.85875891998987
+Mode at [ 4.45554284 19.27618803 16.02055511] has value -50.81186043628735
+Mode at [1.00000066 4.99999932 1.        ] has value -83.91461625103807
+Mode at [ 5.3953705   4.27897001 15.24473766] has value -18.939534918789544
+```
 
+The two solutions with a value of -18.9 and -19.7 look primising and have a lower combined Hamming distance score than the parameters originally used in the example above.
 
 ## Acknowledgements
 
