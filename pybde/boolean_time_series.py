@@ -67,8 +67,10 @@ class BooleanTimeSeries:
             if t[i] >= t[i+1]:
                 raise ValueError("Time values (t) must be incrementing.")
 
-        if end < t[-1]:
-            raise ValueError("End time must be equal to or greater than last switch time")
+        if not BooleanTimeSeries._is_time_before_or_equal(t[-1], end):
+            raise ValueError(
+                "End time ({}) must be equal to or greater than last switch time ({})".format(
+                    end, t[-1]))
 
     def __str__(self):
         """
