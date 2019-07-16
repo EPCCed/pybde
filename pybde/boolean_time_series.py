@@ -61,7 +61,7 @@ class BooleanTimeSeries:
             y.append(not y[-1])
 
         if len(y) > len(t):
-            raise ValueError("Cannot specify more value elements (y) that time elements (t).")
+            raise ValueError("Cannot specify more value elements (y) than time elements (t).")
 
         for i in range(len(t)-1):
             if t[i] >= t[i+1]:
